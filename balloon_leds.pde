@@ -1,3 +1,163 @@
+// AUDIO STUFF
+//
+//
+
+import krister.Ess.*;        // import audio library
+int NUM_FREQS = 7;
+int AUDIO_X = 300, AUDIO_Y = 580;
+FFT myfft;           // create new FFT object (audio spectrum)
+AudioInput myinput;  // create input object
+int bufferSize=256;  // variable for number of frequency bands
+int audioScale;      // variable to control scaing
+
+slider s1;   // create two slider objects
+slider s2;
+
+AudioFrequencySelector[] audioSelectors;
+
+void setupAudio() {
+
+  Ess.start(this);  // start audio
+  myinput=new AudioInput(bufferSize); // define input
+  myfft=new FFT(bufferSize*2);        // define fft
+  myinput.start();
+
+  myfft.damp(.01);        // damping creates smoother motion
+  myfft.equalizer(true);
+  myfft.limits(.005,.01);
+  myfft.averages(NUM_FREQS);      // controls number of averages
+  
+  // create selectors for each average
+  audioSelectors = new AudioFrequencySelector[NUM_FREQS];
+  for (int i = 0; i < NUM_FREQS; ++i) {
+    audioSelectors[i] = new AudioFrequencySelector(AUDIO_X + 110 + i * 43, AUDIO_Y + 255, str(i), i);
+  }
+
+  //println("Available serial ports:");  // define 'port' as first
+  //println(Serial.list());              // ...available serial port
+  //port = new Serial(this, Serial.list()[0], 9600);
+
+  s1=new slider(AUDIO_X,AUDIO_Y,255, color(255,255,255)); // define slider objects
+  s2=new slider(AUDIO_X + 50,AUDIO_Y,255, color(255,255,255));
+  s1.p=50;   // default position of sliders
+  s2.p=200;
+}
+
+int getAlpha(int freqId) {
+  return int(constrain(myfft.averages[freqId]*audioScale,0,255));
+}
+
+void drawAudio() {
+  pushStyle();
+  s1.render();  // render sliders
+  s2.render();
+  popStyle();
+
+  // draw selectors
+  for (int i = 0; i < audioSelectors.length; ++i) {
+    audioSelectors[i].draw();
+    audioSelectors[i].checkPressed();
+  }
+
+  audioScale=s1.p*20; // adjust audio scale according to slider
+  myfft.damp(map(s2.p,0,255,.01,.1)); // adjust daming
+
+  //for (int i=0; i<bufferSize;i++) {  // draw frequency spectrum
+    //rect((i*1)+50,330,1,myfft.spectrum[i]*(-audioScale));
+  //}
+  pushStyle();
+  for (int i=0; i<NUM_FREQS; i++) { // draw averages
+    int a=int(myfft.averages[i]*(-audioScale));
+    int alph = getAlpha(i);
+    fill(255,0,0,alph);
+    
+    stroke(255,0,0, 100); 
+    rect(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255 ,43,a);
+    //fill(255,0,0);
+    //rect((i*43)+50,330+a,43,1);
+  }
+  
+  for (int i = 0; i < balloons.length; ++i) {
+    int id = balloons[i].freqId;
+    if (id >= 0) {
+      balloons[i].alph =  getAlpha(id);
+    }
+  }
+  
+  popStyle();
+  // write each average to the serial port followed by indicator character
+  // the values are constrained from 0 to 255 so the arduino can handle them
+  // values above 255 would start back at zero
+  //port.write(int(constrain(myfft.averages[0]*audioScale,0,255)));
+//  port.write('A');
+//  port.write(int(constrain(myfft.averages[1]*audioScale,0,255)));
+//  port.write('B');
+//  port.write(int(constrain(myfft.averages[2]*audioScale,0,255)));
+//  port.write('C');
+//  port.write(int(constrain(myfft.averages[3]*audioScale,0,255)));
+//  port.write('D');
+//  port.write(int(constrain(myfft.averages[4]*audioScale,0,255)));
+//  port.write('E');
+//  port.write(int(constrain(myfft.averages[5]*audioScale,0,255)));
+//  port.write('F');
+}
+
+// sets up audio input
+public void audioInputData(AudioInput theInput) {
+  myfft.getSpectrum(myinput);
+}
+
+class slider {
+  int xpos, ypos, thesize, p;
+  boolean slide;
+  color c, cb;
+  slider (int x, int y, int s, color col) {
+    xpos=x;
+    ypos=y;
+    thesize=s;
+    p=0;
+    slide=true;
+    c=col;
+    cb=color(red(c),green(c),blue(c),150);
+  }
+
+  void render() {
+    stroke(40);
+    strokeWeight(1);
+    noFill();
+    line(xpos,ypos,xpos,ypos+thesize);
+
+//    stroke(80);
+//    strokeWeight(2);
+//    noFill();
+//    line(xpos,ypos,xpos,ypos+thesize);
+
+    //noStroke();
+    fill(cb);
+    ellipse(xpos, thesize-p+ypos, 17, 17);
+    fill(c);
+    ellipse(xpos, thesize-p+ypos, 13, 13);
+
+    //text(thesize-dialy,xpos+10,dialy+ypos+5);
+
+    // replace the +'s with double ampersands (web display issues)
+    if (slide=true && mousePressed==true && mouseX<xpos+15 && mouseX>xpos-15){
+      if ((mouseY<=ypos+thesize+10) && (mouseY>=ypos-10)) {
+        p=(3*p+(thesize-(mouseY-ypos)))/4;
+        if (p<0) {
+          p=0;
+        } else if (p>thesize) {
+          p=thesize;
+        }
+      }
+    }
+  }
+}
+
+//
+//
+// END AUDIO STUFF
+
 // used to send data to the arduino
 import processing.serial.*;
 
@@ -57,22 +217,26 @@ Balloon[] centerBalloons = {
 
 Balloon[] balloons = new Balloon[leftBalloons.length * 2 + centerBalloons.length];
 
+BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560), 
+                                   new BalloonTypeSelector(SMALL, "Small", 90, 560), 
+                                   new BalloonTypeSelector(MEDIUM, "Medium", 150, 560), 
+                                   new BalloonTypeSelector(LARGE, "Large", 210, 560)};
+
 public class Balloon {
   int x, y, radius, led;
-  color c;
+  int freqId = -1;
+  int alph = 0;
   Balloon(int x, int y, int radius, int led) {
     this.x = x;
     this.y = y;
     this.radius = radius;
     this.led = led;
-    
-    c = 0xffffffff;
   }
 
   public boolean highlight = false;
 
   void draw() {
-    fill(c);
+    fill(255, 0, 0, alph);
     ellipse(X + x, Y + y, radius, radius);  
     fill(0);
     text(str(led), X + x - 5, Y + y + 5);
@@ -87,9 +251,11 @@ public class Balloon {
 }
 
 void setup() {
-  size(XMID*2+100, 600);
-//  frameRate(30);
-  frameRate( 100 );
+  size(XMID*2+100, 1000);
+  frameRate(30);
+  background(255);
+  fill(0);
+  smooth();
   
   // create the balloons array
   arrayCopy(leftBalloons, 0, balloons, 0, leftBalloons.length);
@@ -100,16 +266,21 @@ void setup() {
     balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].radius, balloons[i].led + leftBalloons.length);
   }
   
-  cp = new ColorPicker( 400, 400, 200, 200, 255 );
-
+  // now setup the audio
+  setupAudio();
+  
 }
 
 void draw() { 
   background(204);
   
-  cp.render();
-  
-  highlightSelectedBalloons();
+  // highlightSelectedBalloons();
+    // now draw the balloon selectors
+  for (int i = 0; i < selectors.length; ++i) {
+    selectors[i].draw();
+    selectors[i].checkPressed();
+  }
+
   for (int i = 0; i < balloons.length; ++i) {
     balloons[i].draw();   
   } 
@@ -117,25 +288,29 @@ void draw() {
   if (mousePressed) {
     drawHighlightRectangle();
   }
+  
+  // now draw audio stuff
+  drawAudio();
+  
 }
 
 // mouse handling for highlighting
 
 int startX, endX, startY, endY = 0;
 void mousePressed() {
-  if (inColorPickerArea()) return;
+  //if (inColorPickerArea()) return;
   startX = mouseX;
   startY = mouseY;
 }
 
 void mouseDragged() {
-  if (inColorPickerArea()) return;
+  //if (inColorPickerArea()) return;
   endX = mouseX;
   endY = mouseY;
 }
 
 void mouseReleased() {
-  if (inColorPickerArea()) return;
+  //if (inColorPickerArea()) return;
   endX = mouseX;
   endY = mouseY;
 }
@@ -155,7 +330,7 @@ void highlightSelectedBalloons() {
 void colorHighlightedBalloons(color c) {
   for (int i = 0; i < balloons.length; ++i) { 
     if (balloons[i].highlight) {
-       balloons[i].c = c;
+//       balloons[i].c = c;
     }
   }
 }
@@ -165,13 +340,14 @@ void drawHighlightRectangle() {
   rect(min(startX, endX), min(startY, endY), abs(startX - endX), abs(startY - endY));
 }
 
+/*
 boolean inColorPickerArea() {
   return (mouseX >= cp.x && 
 	mouseX < (cp.x + cp.w) &&
 	mouseY >= cp.y &&
 	mouseY < (cp.y + cp.h) );
 }
-
+*/
 // code to send the screen representation of the balloons to the arduino via a serial interface
 // see http://processing.org/reference/libraries/serial/Serial.html
 Serial arduinoPort;       
@@ -189,9 +365,9 @@ Serial arduinoPort;
 void sendBalloonData() {
   for (int i = 0; i< balloons.length; ++i) {
     int led = balloons[i].led;
-    int r = int(red(balloons[i].c));
-    int g = int(green(balloons[i].c));
-    int b = int(blue(balloons[i].c));
+    int r = 0;
+    int g = 0;
+    int b = 0;
     // write to the arduino in the form [led ID, red, green, blue]
     arduinoPort.write('[');
     arduinoPort.write(led);
@@ -211,99 +387,66 @@ void refreshLeds() {
   arduinoPort.write('L');
 }
 
-// TODO(omar): this color picker is likely overkill -- probably want a more restricted palette
-// ColorPicker code from http://www.julapy.com/processing/ColorPicker.pde
 
-ColorPicker cp;
-
-public class ColorPicker 
-{
-  int x, y, w, h, c;
-  PImage cpImage;
-  int SELECTED_COLOR_BOX_DIM = 10;
-	
-  public ColorPicker ( int x, int y, int w, int h, int c )
-  {
-    
+// THIS BUTTON CLASS LOOKS REALLY GHETTO. COULD BE MADE PRETTIER
+public class GenericButton {
+  int x, y;
+  String label;
+  int WIDTH = 40, HEIGHT = 30;
+  
+  GenericButton(int x, int y, String label) {
     this.x = x;
-    this.y = y + SELECTED_COLOR_BOX_DIM;
-    this.w = w;
-    this.h = h - SELECTED_COLOR_BOX_DIM;
-    this.c = c;
-		
-    cpImage = new PImage( w, h );
-		
-    init();
+    this.y = y;
+    this.label = label;
   }
-	
-  private void init ()
-  {
-    // draw color.
-    int cw = w - 60;
-    for( int i=0; i<cw; i++ ) 
-    {
-      float nColorPercent = i / (float)cw;
-      float rad = (-360 * nColorPercent) * (PI / 180);
-      int nR = (int)(cos(rad) * 127 + 128) << 16;
-      int nG = (int)(cos(rad + 2 * PI / 3) * 127 + 128) << 8;
-      int nB = (int)(Math.cos(rad + 4 * PI / 3) * 127 + 128);
-      int nColor = nR | nG | nB;
-			
-      setGradient( i, 0, 1, h/2, 0xFFFFFF, nColor );
-      setGradient( i, (h/2), 1, h/2, nColor, 0x000000 );
-    }
-		
-    // draw black/white.
-    drawRect( cw, 0,   30, h/2, 0xFFFFFF );
-    drawRect( cw, h/2, 30, h/2, 0 );
-		
-    // draw grey scale.
-    for( int j=0; j<h; j++ )
-    {
-      int g = 255 - (int)(j/(float)(h-1) * 255 );
-      drawRect( w-30, j, 30, 1, color( g, g, g ) );
-    }
+  
+  void draw() {
+    fill(0xffffff);
+    rect(x, y, WIDTH, HEIGHT);
+    fill(0);
+    text(label, x, y + 15);
   }
 
-  private void setGradient(int x, int y, float w, float h, int c1, int c2 )
-  {
-    float deltaR = red(c2) - red(c1);
-    float deltaG = green(c2) - green(c1);
-    float deltaB = blue(c2) - blue(c1);
-
-    for (int j = y; j<(y+h); j++)
-    {
-      int c = color( red(c1)+(j-y)*(deltaR/h), green(c1)+(j-y)*(deltaG/h), blue(c1)+(j-y)*(deltaB/h) );
-      cpImage.set( x, j, c );
-    }
-  }
-	
-  private void drawRect( int rx, int ry, int rw, int rh, int rc )
-  {
-    for(int i=rx; i<rx+rw; i++) 
-    {
-      for(int j=ry; j<ry+rh; j++) 
-      {
-        cpImage.set( i, j, rc );
-      }
-    }
-  }
-	
-  public void render ()
-  {
-    image( cpImage, x, y );
-    if( mousePressed &&
-	mouseX >= x && 
-	mouseX < x + w &&
+  void checkPressed() {
+    if (mousePressed && mouseX >= x && 
+	mouseX < (x + WIDTH) &&
 	mouseY >= y &&
-	mouseY < y + h )
-    {
-      c = get( mouseX, mouseY );
-      // TODO(omar): the color picker shouldn't be intimately aware of balloons -- rather, when a new color is picked, it should signal to listeners that
-      // a new color has been selected. But that is more work than we want to get into for this small project
-      colorHighlightedBalloons(c);
+	mouseY < (y + HEIGHT) ) {
+      execute();
     }
-    fill( c );
-    rect( x, y - SELECTED_COLOR_BOX_DIM, SELECTED_COLOR_BOX_DIM, SELECTED_COLOR_BOX_DIM);
+  }
+  
+  void execute() {
   }
 }
+
+public class BalloonTypeSelector extends GenericButton{
+  int balloonType;
+  BalloonTypeSelector(int balloonType, String label, int x, int y) {
+    super(x, y, label);  
+    this.balloonType = balloonType;
+  }
+   
+  void execute() {
+    for (int i = 0; i < balloons.length; ++i) { 
+      balloons[i].highlight = (balloons[i].radius == balloonType);
+    }    
+  }
+}
+
+public class AudioFrequencySelector extends GenericButton{
+  int freqId;
+  AudioFrequencySelector(int x, int y, String label, int freqId) {
+    super(x, y, label);
+    this.freqId = freqId;
+  }
+   
+  void execute() {
+    for (int i = 0; i < balloons.length; ++i) { 
+      if (balloons[i].highlight) {
+        balloons[i].freqId = freqId;
+      }
+    }    
+  }
+}
+   
