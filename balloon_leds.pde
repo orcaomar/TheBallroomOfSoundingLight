@@ -4,17 +4,58 @@ import processing.serial.*;
 //println(Serial.list());
 
 // TODO(jeff/omar): add better coordinates and all the balloons, along with their associated LED id, here
-Balloon[] balloons = { 
-  // left
-  new Balloon(50, 100, 20, 0), new Balloon(50, 200, 30, 1),
-  
-  // center
-  new Balloon(150, 100, 20, 2), new Balloon(150, 200, 30, 3),
-  
-  // right
-  new Balloon(250, 100, 20, 4), new Balloon(250, 200, 30, 5)
-  
+int TINY = 30;
+int SMALL = 50;
+int MEDIUM = 80;
+int LARGE = 100;
+int X = 36;
+int Y = 28;
+int YMID = 240;
+int XMID = 410;
+
+Balloon[] leftBalloons = { 
+  // small
+  new Balloon(0, 140, SMALL, 0),  new Balloon(26, YMID, SMALL, 1),   new Balloon(0, 140 + (YMID - 140)*2, SMALL, 2),
+  // top tiny
+  new Balloon(140, 0, TINY, 3),  new Balloon( 97,  48, TINY, 4),   new Balloon( 77,  110, TINY, 5), 
+  new Balloon(57, 174, TINY, 6),  new Balloon( 157,  53, TINY, 7),   new Balloon( 130,  103, TINY, 8),
+  // bottom tiny
+  // here i deduced the center line at 240, and reflected the above in that center line
+  new Balloon(140, (YMID - 0)*2, TINY, 9),  new Balloon( 97,  48 + (YMID - 48)*2 , TINY, 10),   new Balloon( 77,  110 + (YMID - 110)*2, TINY, 11), 
+  new Balloon(57, 174 + (YMID - 174)*2, TINY, 12),  new Balloon( 157,  53 + (YMID - 53)*2, TINY, 13),   new Balloon( 130,  103 + (YMID - 103)*2, TINY, 14),
+
+  // medium
+  new Balloon(111, YMID, MEDIUM, 15),
+  // small
+  new Balloon(144, 166, SMALL, 16), new Balloon( 214,  35, SMALL, 17), 
+  // bottom smalls, reflected
+  new Balloon(144, 166 + (YMID - 166) * 2, SMALL, 18), new Balloon( 214,  35 + (YMID - 35) * 2, SMALL, 19), 
+  // medium
+  new Balloon(314, 64, MEDIUM, 20), new Balloon(214, 122, MEDIUM, 21), new Balloon(217, YMID, MEDIUM, 22),
+  // bottom mediums
+  new Balloon(314, 64 + (YMID - 64)*2, MEDIUM, 23), new Balloon(214, 122 + (YMID-122)*2, MEDIUM, 24),
+  // large
+  new Balloon(307, 179, LARGE, 25), 
+  // bottom large
+  new Balloon(307, 179 + (YMID - 179) * 2, LARGE, 26), 
+  // tiny
+  new Balloon(345, -10, TINY, 27),
+  // bottom tiny
+  new Balloon(345, -10 + (YMID - (-10))*2, TINY, 28),
 };
+
+int LEFT_NUM_BALLOONS = leftBalloons.length;
+
+// center balloons
+Balloon[] centerBalloons = { 
+  new Balloon(XMID, 12, SMALL, 0 + LEFT_NUM_BALLOONS * 2), new Balloon(XMID, 117, LARGE, 1 + LEFT_NUM_BALLOONS*2),
+  // bottom
+    new Balloon(XMID, 12 + (YMID - 12)*2, SMALL, 2 + LEFT_NUM_BALLOONS * 2), new Balloon(XMID, 117 + (YMID- 117) * 2, LARGE, 3 + LEFT_NUM_BALLOONS * 2),
+};
+
+// TODO(omar): add the two extra balloons on the right?
+
+Balloon[] balloons = new Balloon[leftBalloons.length * 2 + centerBalloons.length];
 
 public class Balloon {
   int x, y, radius, led;
@@ -32,21 +73,32 @@ public class Balloon {
 
   void draw() {
     fill(c);
-    ellipse(x, y, radius, radius);  
+    ellipse(X + x, Y + y, radius, radius);  
+    fill(0);
+    text(str(led), X + x - 5, Y + y + 5);
     
     // we use a black dot to indicate a balloon is highlighted
     if (highlight) {
       fill(0);
-      ellipse(x, y, 5, 5);
+      ellipse(X + x, Y + y, 5, 5);
     }
   }
 
 }
 
 void setup() {
-  size(600, 600);
+  size(XMID*2+100, 600);
 //  frameRate(30);
   frameRate( 100 );
+  
+  // create the balloons array
+  arrayCopy(leftBalloons, 0, balloons, 0, leftBalloons.length);
+  arrayCopy(centerBalloons, 0, balloons, leftBalloons.length * 2, centerBalloons.length);
+  
+  // now fix up the right balloons by mirroring in the center axis
+  for (int i = 0; i < leftBalloons.length; ++i) {
+    balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].radius, balloons[i].led + leftBalloons.length);
+  }
   
   cp = new ColorPicker( 400, 400, 200, 200, 255 );
 
