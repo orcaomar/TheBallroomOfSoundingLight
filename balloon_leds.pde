@@ -3,15 +3,16 @@
 //
 
 import krister.Ess.*;        // import audio library
-int NUM_FREQS = 7;
+int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
 int AUDIO_X = 300, AUDIO_Y = 580;
 FFT myfft;           // create new FFT object (audio spectrum)
 AudioInput myinput;  // create input object
 int bufferSize=256;  // variable for number of frequency bands
 int audioScale;      // variable to control scaing
 
-slider s1;   // create two slider objects
-slider s2;
+// create two slider objects
+slider s1;   //Audio Scaling slider
+slider s2;   //Damping slider
 
 AudioFrequencySelector[] audioSelectors;
 
@@ -30,7 +31,7 @@ void setupAudio() {
   // create selectors for each average
   audioSelectors = new AudioFrequencySelector[NUM_FREQS];
   for (int i = 0; i < NUM_FREQS; ++i) {
-    audioSelectors[i] = new AudioFrequencySelector(AUDIO_X + 110 + i * 43, AUDIO_Y + 255, str(i), i);
+    audioSelectors[i] = new AudioFrequencySelector(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255, str(NUM_FREQS-i), i);
   }
 
   //println("Available serial ports:");  // define 'port' as first
@@ -70,9 +71,8 @@ void drawAudio() {
     int a=int(myfft.averages[i]*(-audioScale));
     int alph = getAlpha(i);
     fill(255,0,0,alph);
-    
     stroke(255,0,0, 100); 
-    rect(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255 ,43,a);
+    rect(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255 ,43, -int(constrain(myfft.averages[i]*(audioScale),0,255)));
     //fill(255,0,0);
     //rect((i*43)+50,330+a,43,1);
   }
@@ -108,16 +108,16 @@ public void audioInputData(AudioInput theInput) {
 }
 
 class slider {
-  int xpos, ypos, thesize, p;
+  int x, y, s, p;  //x pos, y pos, slider maximum value, slider position
   boolean slide;
   color c, cb;
-  slider (int x, int y, int s, color col) {
-    xpos=x;
-    ypos=y;
-    thesize=s;
+  slider (int x, int y, int s, color c) {
+    this.x=x;
+    this.y=y;
+    this.s=s;
     p=0;
     slide=true;
-    c=col;
+    this.c=c;
     cb=color(red(c),green(c),blue(c),150);
   }
 
@@ -125,7 +125,8 @@ class slider {
     stroke(40);
     strokeWeight(1);
     noFill();
-    line(xpos,ypos,xpos,ypos+thesize);
+    //line(x,y,x,y+s);
+    rect(x-10, y, 20, s+14); //slider body
 
 //    stroke(80);
 //    strokeWeight(2);
@@ -134,26 +135,25 @@ class slider {
 
     //noStroke();
     fill(cb);
-    ellipse(xpos, thesize-p+ypos, 17, 17);
-    fill(c);
-    ellipse(xpos, thesize-p+ypos, 13, 13);
+    rect(x-10, s-p+y, 20, 14);  //slider button
+    //fill(c);
+    //ellipse(x, s-p+y, 13, 13);
 
     //text(thesize-dialy,xpos+10,dialy+ypos+5);
 
     // replace the +'s with double ampersands (web display issues)
-    if (slide=true && mousePressed==true && mouseX<xpos+15 && mouseX>xpos-15){
-      if ((mouseY<=ypos+thesize+10) && (mouseY>=ypos-10)) {
-        p=(3*p+(thesize-(mouseY-ypos)))/4;
+    if (slide=true && mousePressed==true && mouseX<x+15 && mouseX>x-15){
+      if ((mouseY<=y+s+10) && (mouseY>=y-10)) {
+        p=(3*p+(s-(mouseY-y)))/4;
         if (p<0) {
           p=0;
-        } else if (p>thesize) {
-          p=thesize;
+        } else if (p>s) {
+          p=s;
         }
       }
     }
   }
 }
-
 //
 //
 // END AUDIO STUFF
@@ -243,8 +243,8 @@ public class Balloon {
     
     // we use a black dot to indicate a balloon is highlighted
     if (highlight) {
-      fill(0);
-      ellipse(X + x, Y + y, 5, 5);
+      fill(0, 0, 0, 100);
+      ellipse(X + x, Y + y, radius, radius);
     }
   }
 
@@ -254,7 +254,7 @@ void setup() {
   size(XMID*2+100, 1000);
   frameRate(30);
   background(255);
-  fill(0);
+  fill(255);
   smooth();
   
   // create the balloons array
@@ -272,7 +272,7 @@ void setup() {
 }
 
 void draw() { 
-  background(204);
+  background(255);
   
   // highlightSelectedBalloons();
     // now draw the balloon selectors
@@ -392,7 +392,7 @@ void refreshLeds() {
 public class GenericButton {
   int x, y;
   String label;
-  int WIDTH = 40, HEIGHT = 30;
+  int WIDTH = 43, HEIGHT = 30;
   
   GenericButton(int x, int y, String label) {
     this.x = x;
@@ -402,9 +402,10 @@ public class GenericButton {
   
   void draw() {
     fill(0xffffff);
+    //fill(255);
     rect(x, y, WIDTH, HEIGHT);
     fill(0);
-    text(label, x, y + 15);
+    text(label, x+5, y + 15);
   }
 
   void checkPressed() {
