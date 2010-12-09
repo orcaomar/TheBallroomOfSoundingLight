@@ -10,6 +10,8 @@ AudioInput myinput;  // create input object
 int bufferSize=256;  // variable for number of frequency bands
 int audioScale;      // variable to control scaing
 
+int BALLOON_MAX_Y = AUDIO_Y - 45;
+
 // create two slider objects
 slider s1;   //Audio Scaling slider
 slider s2;   //Damping slider
@@ -223,13 +225,13 @@ BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560
                                    new BalloonTypeSelector(LARGE, "Large", 210, 560)};
 
 public class Balloon {
-  int x, y, radius, led;
+  int x, y, diameter, led;
   int freqId = -1;
   int alph = 0;
-  Balloon(int x, int y, int radius, int led) {
+  Balloon(int x, int y, int diameter, int led) {
     this.x = x;
     this.y = y;
-    this.radius = radius;
+    this.diameter = diameter;
     this.led = led;
   }
 
@@ -237,15 +239,22 @@ public class Balloon {
 
   void draw() {
     fill(255, 0, 0, alph);
-    ellipse(X + x, Y + y, radius, radius);  
+    ellipse(X + x, Y + y, diameter, diameter);  
     fill(0);
     text(str(led), X + x - 5, Y + y + 5);
     
     // we use a black dot to indicate a balloon is highlighted
     if (highlight) {
       fill(0, 0, 0, 100);
-      ellipse(X + x, Y + y, radius, radius);
+      ellipse(X + x, Y + y, diameter, diameter);
     }
+  }
+
+  boolean inBalloon(int mx, int my) {
+    int cx = X + x;
+    int cy = Y + y;
+    float d = sqrt((cx - mx)*(cx-mx) + (cy-my)*(cy-my));
+    return d <= diameter / 2;
   }
 
 }
@@ -263,7 +272,7 @@ void setup() {
   
   // now fix up the right balloons by mirroring in the center axis
   for (int i = 0; i < leftBalloons.length; ++i) {
-    balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].radius, balloons[i].led + leftBalloons.length);
+    balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].diameter, balloons[i].led + leftBalloons.length);
   }
   
   // now setup the audio
@@ -274,7 +283,10 @@ void setup() {
 void draw() { 
   background(255);
   
-  // highlightSelectedBalloons();
+  if (mousePressed && !inAudioSelectors() && !inBalloons()) {
+    clearHighlightedBalloons();
+  }
+  
     // now draw the balloon selectors
   for (int i = 0; i < selectors.length; ++i) {
     selectors[i].draw();
@@ -285,22 +297,49 @@ void draw() {
     balloons[i].draw();   
   } 
   
-  if (mousePressed) {
+  /*if (mousePressed & mouseY < BALLOON_MAX_Y) {
     drawHighlightRectangle();
-  }
+  }*/
   
   // now draw audio stuff
   drawAudio();
   
 }
 
+void clearHighlightedBalloons() {
+  for (int i = 0; i < balloons.length; ++i) {
+    balloons[i].highlight = false;   
+  }
+}
+
+boolean inAudioSelectors() {
+  for (int i = 0; i < audioSelectors.length; ++i) {
+    if (audioSelectors[i].isPressed()) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// TODO: implement
+boolean inBalloons() {
+  return mouseY < BALLOON_MAX_Y; 
+}
+
 // mouse handling for highlighting
 
-int startX, endX, startY, endY = 0;
+int startX, endX, startY, endY = -1;
+
+void resetHighlightAreaBoundingBox() {
+  startX = endX = startY = endY = -1;
+};
+
 void mousePressed() {
-  //if (inColorPickerArea()) return;
-  startX = mouseX;
-  startY = mouseY;
+  // only remember where the highlighting started if we are in the highlight area
+  if (mouseY < BALLOON_MAX_Y) {
+    highlightSelectedBalloons();
+  }
 }
 
 void mouseDragged() {
@@ -310,21 +349,18 @@ void mouseDragged() {
 }
 
 void mouseReleased() {
-  //if (inColorPickerArea()) return;
-  endX = mouseX;
-  endY = mouseY;
+  resetHighlightAreaBoundingBox();
 }
 
 void highlightSelectedBalloons() {
-  int minX = min(startX, endX);
-  int maxX = max(startX, endX);
-  int minY = min(startY, endY);
-  int maxY = max(startY, endY);
+  int mx = mouseX;
+  int my = mouseY;
   for (int i = 0; i < balloons.length; ++i) { 
-    int x = balloons[i].x;
-    int y = balloons[i].y;
-    balloons[i].highlight = (x >= minX && x <= maxX && y >= minY && y <= maxY);
-  } 
+    if (balloons[i].inBalloon(mx, my)) {
+      balloons[i].highlight = !balloons[i].highlight;
+      return;
+    }
+  }
 }
 
 void colorHighlightedBalloons(color c) {
@@ -336,6 +372,7 @@ void colorHighlightedBalloons(color c) {
 }
 
 void drawHighlightRectangle() {
+  if (startX < 0 || startY <0 || endX < 0 || endY < 0) return;
   noFill();
   rect(min(startX, endX), min(startY, endY), abs(startX - endX), abs(startY - endY));
 }
@@ -408,11 +445,15 @@ public class GenericButton {
     text(label, x+5, y + 15);
   }
 
-  void checkPressed() {
-    if (mousePressed && mouseX >= x && 
+  boolean isPressed() {
+    return (mousePressed && mouseX >= x && 
 	mouseX < (x + WIDTH) &&
 	mouseY >= y &&
-	mouseY < (y + HEIGHT) ) {
+	mouseY < (y + HEIGHT));
+  }
+
+  void checkPressed() {
+    if  (isPressed()) {
       execute();
     }
   }
@@ -430,7 +471,7 @@ public class BalloonTypeSelector extends GenericButton{
    
   void execute() {
     for (int i = 0; i < balloons.length; ++i) { 
-      balloons[i].highlight = (balloons[i].radius == balloonType);
+      balloons[i].highlight = (balloons[i].diameter == balloonType);
     }    
   }
 }
