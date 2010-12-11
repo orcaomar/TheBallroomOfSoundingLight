@@ -3,12 +3,16 @@
 //
 
 import krister.Ess.*;        // import audio library
-int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
+int NUM_FREQS = 12;  //number of frequency bands - this could eventally be an input parameter with a default value
 int AUDIO_X = 300, AUDIO_Y = 580;
 FFT myfft;           // create new FFT object (audio spectrum)
 AudioInput myinput;  // create input object
 int bufferSize=256;  // variable for number of frequency bands
 int audioScale;      // variable to control scaing
+
+PFont fontA; //global variable for the font
+
+
 
 int BALLOON_MAX_Y = AUDIO_Y - 45;
 
@@ -124,7 +128,7 @@ class slider {
   }
 
   void render() {
-    stroke(40);
+    stroke(100);
     strokeWeight(1);
     noFill();
     //line(x,y,x,y+s);
@@ -136,7 +140,7 @@ class slider {
 //    line(xpos,ypos,xpos,ypos+thesize);
 
     //noStroke();
-    fill(cb);
+    fill(150);
     rect(x-10, s-p+y, 20, 14);  //slider button
     //fill(c);
     //ellipse(x, s-p+y, 13, 13);
@@ -221,13 +225,15 @@ Balloon[] balloons = new Balloon[leftBalloons.length * 2 + centerBalloons.length
 
 BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560), 
                                    new BalloonTypeSelector(SMALL, "Small", 90, 560), 
-                                   new BalloonTypeSelector(MEDIUM, "Medium", 150, 560), 
+                                   new BalloonTypeSelector(MEDIUM, "Med", 150, 560), 
                                    new BalloonTypeSelector(LARGE, "Large", 210, 560)};
 
 public class Balloon {
   int x, y, diameter, led;
   int freqId = -1;
   int alph = 0;
+  int text_width;
+  int text_height;
   Balloon(int x, int y, int diameter, int led) {
     this.x = x;
     this.y = y;
@@ -239,13 +245,18 @@ public class Balloon {
 
   void draw() {
     fill(255, 0, 0, alph);
+    stroke(66);
     ellipse(X + x, Y + y, diameter, diameter);  
     fill(0);
-    text(str(led), X + x - 5, Y + y + 5);
+    //text(str(led), X + x - 5, Y + y + 5);
+    text_width = round(textWidth(str(freqId)));
+    if (freqId >= 0) {
+    text(str(freqId), X + x, Y + y);
+    }
     
-    // we use a black dot to indicate a balloon is highlighted
+    
     if (highlight) {
-      fill(0, 0, 0, 100);
+      fill(200, 150);
       ellipse(X + x, Y + y, diameter, diameter);
     }
   }
@@ -262,8 +273,12 @@ public class Balloon {
 void setup() {
   size(XMID*2+100, 1000);
   frameRate(30);
-  background(255);
-  fill(255);
+  background(0);
+  //fill(255);
+  
+  fontA = loadFont("ArialMT-14.vlw");//load font you want from data directory
+  textFont(fontA, 14); //all fonts are 14 point Arial
+  
   smooth();
   
   // create the balloons array
@@ -281,7 +296,7 @@ void setup() {
 }
 
 void draw() { 
-  background(255);
+  background(25);
   
   if (mousePressed && !inAudioSelectors() && !inBalloons()) {
     clearHighlightedBalloons();
@@ -428,21 +443,29 @@ void refreshLeds() {
 // THIS BUTTON CLASS LOOKS REALLY GHETTO. COULD BE MADE PRETTIER
 public class GenericButton {
   int x, y;
+  int buttonfill = 100;
   String label;
-  int WIDTH = 43, HEIGHT = 30;
+  int WIDTH = 43, HEIGHT = 20;
+  float text_width;
+  
+  
+
+   
   
   GenericButton(int x, int y, String label) {
     this.x = x;
     this.y = y;
     this.label = label;
+    
   }
   
   void draw() {
-    fill(0xffffff);
+    fill(buttonfill);
     //fill(255);
     rect(x, y, WIDTH, HEIGHT);
     fill(0);
-    text(label, x+5, y + 15);
+    text_width = textWidth(label);
+    text(label, x + round((WIDTH-text_width)/2), y + 15); //center text in labels
   }
 
   boolean isPressed() {
@@ -454,9 +477,28 @@ public class GenericButton {
 
   void checkPressed() {
     if  (isPressed()) {
+      fill(150); //hightlight button when clicked
+      rect(x, y, WIDTH, HEIGHT);
       execute();
     }
   }
+/*  //thought I'd try to have some change in the cursor or at least highlight a button when you mouse over it. doesn't work as is.
+//I think a shade change is going to be better than a cursor change
+boolean mouseOver() {
+   return (mouseX >= x && 
+	mouseX < (x + WIDTH) &&
+	mouseY >= y &&
+	mouseY < (y + HEIGHT));
+}
+
+void checkOver() {
+  if (mouseOver()) {
+    cursor(HAND);
+  } else {
+    cursor(ARROW);
+  }
+}
+*/
   
   void execute() {
   }
