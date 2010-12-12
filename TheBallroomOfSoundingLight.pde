@@ -3,7 +3,7 @@
 //
 
 import krister.Ess.*;        // import audio library
-int NUM_FREQS = 12;  //number of frequency bands - this could eventally be an input parameter with a default value
+int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
 int AUDIO_X = 300, AUDIO_Y = 580;
 FFT myfft;           // create new FFT object (audio spectrum)
 AudioInput myinput;  // create input object
@@ -74,7 +74,6 @@ void drawAudio() {
   //}
   pushStyle();
   for (int i=0; i<NUM_FREQS; i++) { // draw averages
-    int a=int(myfft.averages[i]*(-audioScale));
     int alph = getAlpha(i);
     fill(255,0,0,alph);
     stroke(255,0,0, 100); 
@@ -229,7 +228,8 @@ BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560
                                    new BalloonTypeSelector(LARGE, "Large", 210, 560)};
 
 public class Balloon {
-  int x, y, diameter, led;
+  int x, y, diameter;
+  int led;
   int freqId = -1;
   int alph = 0;
   int text_width;
@@ -238,7 +238,7 @@ public class Balloon {
     this.x = x;
     this.y = y;
     this.diameter = diameter;
-    this.led = led;
+    this.led = byte(led);
   }
 
   public boolean highlight = false;
@@ -247,11 +247,13 @@ public class Balloon {
     fill(255, 0, 0, alph);
     stroke(66);
     ellipse(X + x, Y + y, diameter, diameter);  
-    fill(0);
-    //text(str(led), X + x - 5, Y + y + 5);
-    text_width = round(textWidth(str(freqId)));
+    fill(100);
+    
+    //text_width = round(textWidth(str(freqId)));
+    textAlign(CENTER, CENTER);
+    text(str(led), X + x, Y + y +15);
     if (freqId >= 0) {
-    text(str(freqId), X + x, Y + y);
+    text(str(NUM_FREQS - freqId), X + x, Y + y);
     }
     
     
@@ -271,12 +273,14 @@ public class Balloon {
 }
 
 void setup() {
+  //println(Serial.list());
+  //arduinoPort = new Serial(this, Serial.list()[0], 115200);
   size(XMID*2+100, 1000);
   frameRate(30);
   background(0);
   //fill(255);
   
-  fontA = loadFont("ArialMT-14.vlw");//load font you want from data directory
+  fontA = loadFont("Arial-BoldMT-14.vlw");//load font you want from data directory
   textFont(fontA, 14); //all fonts are 14 point Arial
   
   smooth();
@@ -290,9 +294,41 @@ void setup() {
     balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].diameter, balloons[i].led + leftBalloons.length);
   }
   
+  sortBalloonsArrayByLed();
+  
   // now setup the audio
   setupAudio();
   
+}
+
+// this is an inefficient sorting algorithm for making sure the balloons are sorted by LED id. this way, we don't
+// need to send the LED id, since we'll always be sending them in order.
+void sortBalloonsArrayByLed() {
+ ArrayList allBalloons = new ArrayList(balloons.length);
+  for (int i = 0; i < balloons.length; ++i) {
+    allBalloons.add(balloons[i]);
+  }
+  
+  ArrayList sortedBalloons = new ArrayList(balloons.length);
+  while (allBalloons.size() > 0) {
+    // find the minimum LED id in the array
+    int  minLed = balloons.length + 1;
+    int minIndex = balloons.length + 1;
+    for (byte i = 0; i < allBalloons.size(); ++i) {
+      Balloon b = (Balloon)allBalloons.get(i);
+      if (minLed > b.led) {
+        minLed = b.led;
+        minIndex = i;
+      }
+    }
+    sortedBalloons.add(allBalloons.get(minIndex));
+    allBalloons.remove(minIndex);    
+  }
+  
+  for (int i = 0; i < sortedBalloons.size(); ++i) {
+    balloons[i] = (Balloon)sortedBalloons.get(i);
+  }
+ 
 }
 
 void draw() { 
@@ -318,6 +354,9 @@ void draw() {
   
   // now draw audio stuff
   drawAudio();
+  if (arduinoPort != null) {
+    updateLEDBoards();
+  }
   
 }
 
@@ -392,17 +431,11 @@ void drawHighlightRectangle() {
   rect(min(startX, endX), min(startY, endY), abs(startX - endX), abs(startY - endY));
 }
 
-/*
-boolean inColorPickerArea() {
-  return (mouseX >= cp.x && 
-	mouseX < (cp.x + cp.w) &&
-	mouseY >= cp.y &&
-	mouseY < (cp.y + cp.h) );
-}
-*/
+
 // code to send the screen representation of the balloons to the arduino via a serial interface
 // see http://processing.org/reference/libraries/serial/Serial.html
-Serial arduinoPort;       
+Serial arduinoPort = null;
+
 
 // List all the available serial ports:
 //println(Serial.list());
@@ -414,23 +447,18 @@ Serial arduinoPort;
 // TODO(omar): right now we send the data for every balloon. It would be easy to mark if a balloon has actually changed since
 // last time, and only send its data if it has changed since the last update. BUT not sure if that's needed -- this might
 // be fast enough as is.
-void sendBalloonData() {
+// The format is [ledId1,Alpha1,ledId2, Alpha2 ..etc] but no comma, since each led Id and alpha is exactly 1 byte, so no comma is
+// needed.
+void updateLEDBoards() {
+  arduinoPort.write('['); //indicates next serial byte will be a led ID
   for (int i = 0; i< balloons.length; ++i) {
-    int led = balloons[i].led;
-    int r = 0;
-    int g = 0;
-    int b = 0;
-    // write to the arduino in the form [led ID, red, green, blue]
-    arduinoPort.write('[');
-    arduinoPort.write(led);
-    arduinoPort.write(',');
-    arduinoPort.write(r);
-    arduinoPort.write(',');
-    arduinoPort.write(g);
-    arduinoPort.write(',');
-    arduinoPort.write(b);
-    arduinoPort.write(']');
+    byte led = (byte)balloons[i].led;
+    assert(led == i);
+    byte level = (byte)balloons[i].alph;    
+    // arduinoPort.write(led);
+    arduinoPort.write(level);
   }
+  arduinoPort.write(']'); //completed filling  array with balloon data, now tell Arduino to update boards
 }
 
 // we reserve a special command for telling the arduino to push the data to the LEDs
@@ -464,8 +492,10 @@ public class GenericButton {
     //fill(255);
     rect(x, y, WIDTH, HEIGHT);
     fill(0);
+    textAlign(LEFT, BOTTOM);
     text_width = textWidth(label);
-    text(label, x + round((WIDTH-text_width)/2), y + 15); //center text in labels
+    text(label, x + round((WIDTH-text_width)/2), y + 18); //center text in labels
+    
   }
 
   boolean isPressed() {
