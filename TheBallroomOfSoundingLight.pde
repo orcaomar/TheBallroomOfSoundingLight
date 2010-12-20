@@ -4,7 +4,7 @@
 
 import krister.Ess.*;        // import audio library
 int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
-int AUDIO_X = 300, AUDIO_Y = 580;
+int AUDIO_X = 300, AUDIO_Y = 450;
 FFT myfft;           // create new FFT object (audio spectrum)
 AudioInput myinput;  // create input object
 int bufferSize=256;  // variable for number of frequency bands
@@ -170,62 +170,45 @@ import processing.serial.*;
 
 // TODO(jeff/omar): add better coordinates and all the balloons, along with their associated LED id, here
 int TINY = 30;
-int SMALL = 50;
-int MEDIUM = 80;
-int LARGE = 100;
+int SMALL = 45;
+int MEDIUM = 60;
+int LARGE = 75;
 int X = 36;
 int Y = 28;
-int YMID = 240;
-int XMID = 410;
+int YMID = 178;
+int XMID = 330;
 
-Balloon[] leftBalloons = { 
+
+Balloon[] leftTopBalloons = { 
   // small
-  new Balloon(0, 140, SMALL, 0),  new Balloon(26, YMID, SMALL, 1),   new Balloon(0, 140 + (YMID - 140)*2, SMALL, 2),
+  new Balloon(136, 0, SMALL),  new Balloon(68, 82, SMALL),   new Balloon(260, 51, SMALL), new Balloon(52, 140, SMALL),
   // top tiny
-  new Balloon(140, 0, TINY, 3),  new Balloon( 97,  48, TINY, 4),   new Balloon( 77,  110, TINY, 5), 
-  new Balloon(57, 174, TINY, 6),  new Balloon( 157,  53, TINY, 7),   new Balloon( 130,  103, TINY, 8),
-  // bottom tiny
-  // here i deduced the center line at 240, and reflected the above in that center line
-  new Balloon(140, (YMID - 0)*2, TINY, 9),  new Balloon( 97,  48 + (YMID - 48)*2 , TINY, 10),   new Balloon( 77,  110 + (YMID - 110)*2, TINY, 11), 
-  new Balloon(57, 174 + (YMID - 174)*2, TINY, 12),  new Balloon( 157,  53 + (YMID - 53)*2, TINY, 13),   new Balloon( 130,  103 + (YMID - 103)*2, TINY, 14),
-
-  // medium
-  new Balloon(111, YMID, MEDIUM, 15),
-  // small
-  new Balloon(144, 166, SMALL, 16), new Balloon( 214,  35, SMALL, 17), 
-  // bottom smalls, reflected
-  new Balloon(144, 166 + (YMID - 166) * 2, SMALL, 18), new Balloon( 214,  35 + (YMID - 35) * 2, SMALL, 19), 
-  // medium
-  new Balloon(314, 64, MEDIUM, 20), new Balloon(214, 122, MEDIUM, 21), new Balloon(217, YMID, MEDIUM, 22),
-  // bottom mediums
-  new Balloon(314, 64 + (YMID - 64)*2, MEDIUM, 23), new Balloon(214, 122 + (YMID-122)*2, MEDIUM, 24),
-  // large
-  new Balloon(307, 179, LARGE, 25), 
-  // bottom large
-  new Balloon(307, 179 + (YMID - 179) * 2, LARGE, 26), 
-  // tiny
-  new Balloon(345, -10, TINY, 27),
-  // bottom tiny
-  new Balloon(345, -10 + (YMID - (-10))*2, TINY, 28),
+  new Balloon(283, 2, TINY),  new Balloon( 214,  71, TINY),   new Balloon( 116,  125, TINY), new Balloon( 172,  131, TINY), 
+  // top large
+  new Balloon(157, 75, MEDIUM),  new Balloon( 212, 10 , MEDIUM),
+  new Balloon(250, 132, LARGE)
 };
 
-int LEFT_NUM_BALLOONS = leftBalloons.length;
+Balloon[] xAxisBalloons = { 
+  // small
+  new Balloon(0, YMID, TINY),  new Balloon(116, YMID, MEDIUM),   new Balloon(188, YMID, SMALL)
+};
 
-// center balloons
-Balloon[] centerBalloons = { 
-  new Balloon(XMID, 12, SMALL, 0 + LEFT_NUM_BALLOONS * 2), new Balloon(XMID, 117, LARGE, 1 + LEFT_NUM_BALLOONS*2),
-  // bottom
-    new Balloon(XMID, 12 + (YMID - 12)*2, SMALL, 2 + LEFT_NUM_BALLOONS * 2), new Balloon(XMID, 117 + (YMID- 117) * 2, LARGE, 3 + LEFT_NUM_BALLOONS * 2),
+Balloon[] yAxisBalloons = { 
+  // small
+  new Balloon(XMID, 11, SMALL),  new Balloon(XMID, 86, LARGE)
 };
 
 // TODO(omar): add the two extra balloons on the right?
 
-Balloon[] balloons = new Balloon[leftBalloons.length * 2 + centerBalloons.length];
+Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2];
 
 BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560), 
                                    new BalloonTypeSelector(SMALL, "Small", 90, 560), 
                                    new BalloonTypeSelector(MEDIUM, "Med", 150, 560), 
                                    new BalloonTypeSelector(LARGE, "Large", 210, 560)};
+
+static byte NEXT_BALLOON_LED = 0;
 
 public class Balloon {
   int x, y, diameter;
@@ -234,11 +217,12 @@ public class Balloon {
   int alph = 0;
   int text_width;
   int text_height;
-  Balloon(int x, int y, int diameter, int led) {
+  
+  Balloon(int x, int y, int diameter) {
     this.x = x;
     this.y = y;
     this.diameter = diameter;
-    this.led = byte(led);
+    this.led = NEXT_BALLOON_LED++;
   }
 
   public boolean highlight = false;
@@ -286,14 +270,33 @@ void setup() {
   smooth();
   
   // create the balloons array
-  arrayCopy(leftBalloons, 0, balloons, 0, leftBalloons.length);
-  arrayCopy(centerBalloons, 0, balloons, leftBalloons.length * 2, centerBalloons.length);
+  arrayCopy(leftTopBalloons, 0, balloons, 0, leftTopBalloons.length);
   
   // now fix up the right balloons by mirroring in the center axis
-  for (int i = 0; i < leftBalloons.length; ++i) {
-    balloons[i + leftBalloons.length] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].diameter, balloons[i].led + leftBalloons.length);
+  int L = leftTopBalloons.length;
+  for (int i = 0; i < leftTopBalloons.length; ++i) {
+    // reflect in X axis, Y axis, and both
+    balloons[L + 3*i] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y, balloons[i].diameter);
+    balloons[L + 3*i + 1] = new Balloon(balloons[i].x, balloons[i].y + (YMID - balloons[i].y) * 2, balloons[i].diameter);
+    balloons[L + 3*i + 2] = new Balloon(balloons[i].x + (XMID - balloons[i].x) * 2, balloons[i].y + (YMID - balloons[i].y) * 2, balloons[i].diameter);
   }
   
+  // y axis balloons
+  L = 4 * L;
+  arrayCopy(yAxisBalloons, 0, balloons, L, yAxisBalloons.length);
+  L = L + yAxisBalloons.length;
+  for (int i = 0; i < yAxisBalloons.length; ++i) {
+    balloons[L + i] = new Balloon(yAxisBalloons[i].x, yAxisBalloons[i].y + (YMID - yAxisBalloons[i].y) * 2, yAxisBalloons[i].diameter);
+  }
+
+  // x axis balloons
+  L = L + yAxisBalloons.length;
+  arrayCopy(xAxisBalloons, 0, balloons, L, xAxisBalloons.length);
+  L = L + xAxisBalloons.length;
+  for (int i = 0; i < xAxisBalloons.length; ++i) {
+    balloons[L + i] = new Balloon(xAxisBalloons[i].x + (XMID - xAxisBalloons[i].x) * 2, xAxisBalloons[i].y, xAxisBalloons[i].diameter);
+  }
+
   sortBalloonsArrayByLed();
   
   // now setup the audio
