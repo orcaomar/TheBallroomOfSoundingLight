@@ -1,29 +1,31 @@
 // AUDIO STUFF
 //
 //
-
-import krister.Ess.*;        // import audio library
+//import processing.serial.*;
+//import krister.Ess.*;        // import audio library
 int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
-int AUDIO_X = 300, AUDIO_Y = 450;
-FFT myfft;           // create new FFT object (audio spectrum)
-AudioInput myinput;  // create input object
-int bufferSize=256;  // variable for number of frequency bands
-int audioScale;      // variable to control scaing
+int audioX = 150, audioY = 450;
+//FFT myfft;           // create new FFT object (audio spectrum)
+//AudioInput myinput;  // create input object
+//int bufferSize=256;  // variable for number of frequency bands
+//int audioScale;      // variable to control scaing
 
 PFont fontA; //global variable for the font
+Serial myPort = null; 
 
 
 
-int BALLOON_MAX_Y = AUDIO_Y - 45;
+int BALLOON_MAX_Y = audioY - 45;
 
 // create two slider objects
-slider s1;   //Audio Scaling slider
-slider s2;   //Damping slider
+Slider sliderScale;   //Audio Scaling slider
+Slider sliderDamp;   //Damping slider
+Slider sliderThreshold; //Threshold slider
 
 AudioFrequencySelector[] audioSelectors;
 
 void setupAudio() {
-
+  /*
   Ess.start(this);  // start audio
   myinput=new AudioInput(bufferSize); // define input
   myfft=new FFT(bufferSize*2);        // define fft
@@ -33,120 +35,140 @@ void setupAudio() {
   myfft.equalizer(true);
   myfft.limits(.005,.01);
   myfft.averages(NUM_FREQS);      // controls number of averages
-  
+  */
   // create selectors for each average
-  audioSelectors = new AudioFrequencySelector[NUM_FREQS];
+  // 14 bands in total
+  audioSelectors = new AudioFrequencySelector[NUM_FREQS+7];
   for (int i = 0; i < NUM_FREQS; ++i) {
-    audioSelectors[i] = new AudioFrequencySelector(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255, str(NUM_FREQS-i), i);
+    audioSelectors[i] = new AudioFrequencySelector(audioX + (i*35)+50, audioY + 255, str(i+1), i);
+    audioSelectors[i+7] = new AudioFrequencySelector(audioX + ((i+7)*35)+50 + 35, audioY + 255, str(i+1), i+7);
   }
 
-  //println("Available serial ports:");  // define 'port' as first
-  //println(Serial.list());              // ...available serial port
-  //port = new Serial(this, Serial.list()[0], 9600);
 
-  s1=new slider(AUDIO_X,AUDIO_Y,255, color(255,255,255)); // define slider objects
-  s2=new slider(AUDIO_X + 50,AUDIO_Y,255, color(255,255,255));
-  s1.p=50;   // default position of sliders
-  s2.p=200;
+
+  sliderScale=new Slider(audioX - 80,audioY+5,255, 255, "Scaling"); // define slider objects
+  sliderDamp=new Slider(audioX -40,audioY+5,255, 255, "Damping");
+  sliderThreshold = new Slider(audioX, audioY+5, 255, 255, "Threshold");
+  sliderScale.p=85;   // default position of sliders
+  sliderDamp.p=30;
+  sliderThreshold.p = 20;
 }
-
+/*
 int getAlpha(int freqId) {
   return int(constrain(myfft.averages[freqId]*audioScale,0,255));
 }
-
+*/
 void drawAudio() {
+  
+  byte[] inBuffer = new byte[14];
+  while (myPort.available() >=14) {
+    
+    myPort.readBytes(inBuffer);
+   
+  }
   pushStyle();
-  s1.render();  // render sliders
-  s2.render();
+  sliderScale.render();  // render sliders
+  sliderDamp.render();
+  sliderThreshold.render();
   popStyle();
 
-  // draw selectors
-  for (int i = 0; i < audioSelectors.length; ++i) {
-    audioSelectors[i].draw();
-    audioSelectors[i].checkPressed();
-  }
+ 
 
-  audioScale=s1.p*20; // adjust audio scale according to slider
-  myfft.damp(map(s2.p,0,255,.01,.1)); // adjust daming
+  //audioScale=sliderScale.p*20; // adjust audio scale according to slider
+  //myfft.damp(map(sliderDamp.p,0,255,.01,.1)); // adjust daming
 
   //for (int i=0; i<bufferSize;i++) {  // draw frequency spectrum
     //rect((i*1)+50,330,1,myfft.spectrum[i]*(-audioScale));
   //}
-  pushStyle();
+  
+  
+  /*
   for (int i=0; i<NUM_FREQS; i++) { // draw averages
     int alph = getAlpha(i);
     fill(255,0,0,alph);
     stroke(255,0,0, 100); 
-    rect(AUDIO_X + ((NUM_FREQS-i)*43)+50, AUDIO_Y + 255 ,43, -int(constrain(myfft.averages[i]*(audioScale),0,255)));
+    rect(audioX + ((NUM_FREQS-i)*43)+50, audioY + 255 ,43, -int(constrain(myfft.averages[i]*(audioScale),0,255)));
     //fill(255,0,0);
     //rect((i*43)+50,330+a,43,1);
   }
+  */
+  pushStyle();
+  for (int band=0; band<7; band++) { // draw equalizer
+
+    fill(255,0,0,int(inBuffer[band]));
+    stroke(255,0,0, 100); 
+    rect(audioX + (band*35)+50, audioY + 255 ,35, -int(inBuffer[band]));  //draw Left spectrum
+    
+    
+    fill(255,0,0,int(inBuffer[band+7]));
+    rect(audioX + ((band+7)*35)+50 + 35, audioY + 255, 35, -int(inBuffer[band+7])); //draw Right spectrum
+    
+    //draw threshold
+    stroke(100);
+    line(audioX + 50, (audioY + 255 - sliderThreshold.p), audioX + 50 + (7*35), (audioY + 255 - sliderThreshold.p));
+    line(audioX + ((band+7)*35)+50 + 35, (audioY + 255 - sliderThreshold.p), audioX + 50 + 275 + (7*35), (audioY + 255 - sliderThreshold.p));
+    
+
+    
+    }
+  popStyle();
+  
+   // draw selectors
+  for (int i = 0; i < audioSelectors.length; ++i) {
+    audioSelectors[i].draw();
+    audioSelectors[i].checkPressed();
+  }
+  
+  //pushStyle();
   
   for (int i = 0; i < balloons.length; ++i) {
     int id = balloons[i].freqId;
     if (id >= 0) {
-      balloons[i].alph =  getAlpha(id);
+      balloons[i].alph =  int(inBuffer[id]);
     }
   }
   
-  popStyle();
-  // write each average to the serial port followed by indicator character
-  // the values are constrained from 0 to 255 so the arduino can handle them
-  // values above 255 would start back at zero
-  //port.write(int(constrain(myfft.averages[0]*audioScale,0,255)));
-//  port.write('A');
-//  port.write(int(constrain(myfft.averages[1]*audioScale,0,255)));
-//  port.write('B');
-//  port.write(int(constrain(myfft.averages[2]*audioScale,0,255)));
-//  port.write('C');
-//  port.write(int(constrain(myfft.averages[3]*audioScale,0,255)));
-//  port.write('D');
-//  port.write(int(constrain(myfft.averages[4]*audioScale,0,255)));
-//  port.write('E');
-//  port.write(int(constrain(myfft.averages[5]*audioScale,0,255)));
-//  port.write('F');
+  
+  //popStyle();
+
 }
 
 // sets up audio input
+/*
 public void audioInputData(AudioInput theInput) {
   myfft.getSpectrum(myinput);
 }
+*/
 
-class slider {
-  int x, y, s, p;  //x pos, y pos, slider maximum value, slider position
+class Slider {
+  int x, y, s, p, h;  //x pos, y pos, slider maximum value, slider position, height
+  String name;
   boolean slide;
-  color c, cb;
-  slider (int x, int y, int s, color c) {
+  
+  Slider (int x, int y, int s, int h, String name) {
     this.x=x;
     this.y=y;
     this.s=s;
+    this.h=h;
+    this.name=name;
     p=0;
     slide=true;
-    this.c=c;
-    cb=color(red(c),green(c),blue(c),150);
+    
+    
   }
 
   void render() {
     stroke(100);
     strokeWeight(1);
     noFill();
-    //line(x,y,x,y+s);
+    
     rect(x-10, y, 20, s+14); //slider body
 
-//    stroke(80);
-//    strokeWeight(2);
-//    noFill();
-//    line(xpos,ypos,xpos,ypos+thesize);
-
-    //noStroke();
     fill(150);
     rect(x-10, s-p+y, 20, 14);  //slider button
-    //fill(c);
-    //ellipse(x, s-p+y, 13, 13);
+    
 
-    //text(thesize-dialy,xpos+10,dialy+ypos+5);
-
-    // replace the +'s with double ampersands (web display issues)
+    
     if (slide=true && mousePressed==true && mouseX<x+15 && mouseX>x-15){
       if ((mouseY<=y+s+10) && (mouseY>=y-10)) {
         p=(3*p+(s-(mouseY-y)))/4;
@@ -164,9 +186,9 @@ class slider {
 // END AUDIO STUFF
 
 // used to send data to the arduino
-import processing.serial.*;
 
-//println(Serial.list());
+
+
 
 // TODO(jeff/omar): add better coordinates and all the balloons, along with their associated LED id, here
 int TINY = 30;
@@ -176,7 +198,7 @@ int LARGE = 75;
 int X = 36;
 int Y = 28;
 int YMID = 178;
-int XMID = 330;
+int XMID = 320;
 
 
 Balloon[] leftTopBalloons = { 
@@ -199,14 +221,16 @@ Balloon[] yAxisBalloons = {
   new Balloon(XMID, 11, SMALL),  new Balloon(XMID, 86, LARGE)
 };
 
-// TODO(omar): add the two extra balloons on the right?
+// ToDo: Omar: Add 2 4', 2 3' and 1 2' balloons to right side of room (they are the only non-symmetrically positioned balloons)
 
 Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2];
 
-BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "Tiny", 30, 560), 
-                                   new BalloonTypeSelector(SMALL, "Small", 90, 560), 
-                                   new BalloonTypeSelector(MEDIUM, "Med", 150, 560), 
-                                   new BalloonTypeSelector(LARGE, "Large", 210, 560)};
+
+//rename the balloons sizes to correspond to their actual physical size
+BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "2'", 10, 450), 
+                                   new BalloonTypeSelector(SMALL, "3'", 10, 490), 
+                                   new BalloonTypeSelector(MEDIUM, "4'", 10, 530), 
+                                   new BalloonTypeSelector(LARGE, "5'", 10, 570)};
 
 static byte NEXT_BALLOON_LED = 0;
 
@@ -237,7 +261,7 @@ public class Balloon {
     textAlign(CENTER, CENTER);
     text(str(led), X + x, Y + y +15);
     if (freqId >= 0) {
-    text(str(NUM_FREQS - freqId), X + x, Y + y);
+    text(str(freqId+1), X + x, Y + y);
     }
     
     
@@ -257,11 +281,10 @@ public class Balloon {
 }
 
 void setup() {
-  //println(Serial.list());
-  //arduinoPort = new Serial(this, Serial.list()[0], 115200);
-  size(XMID*2+100, 1000);
+ import processing.serial.*;
+  size(XMID*2+150, 800);
   frameRate(30);
-  background(0);
+  //background(0);
   //fill(255);
   
   fontA = loadFont("Arial-BoldMT-14.vlw");//load font you want from data directory
@@ -301,6 +324,7 @@ void setup() {
   
   // now setup the audio
   setupAudio();
+  myPort = new Serial(this, Serial.list()[0], 115200);
   
 }
 
@@ -356,10 +380,15 @@ void draw() {
   }*/
   
   // now draw audio stuff
+  checkSliders();
+  
+  
   drawAudio();
+  /*
   if (arduinoPort != null) {
     updateLEDBoards();
   }
+  */
   
 }
 
@@ -435,16 +464,7 @@ void drawHighlightRectangle() {
 }
 
 
-// code to send the screen representation of the balloons to the arduino via a serial interface
-// see http://processing.org/reference/libraries/serial/Serial.html
-Serial arduinoPort = null;
 
-
-// List all the available serial ports:
-//println(Serial.list());
-
-// which port has the arduino? right now we comment this out
-// arduinoPort = new Serial(this, Serial.list()[0], 9600);
 
 
 // TODO(omar): right now we send the data for every balloon. It would be easy to mark if a balloon has actually changed since
@@ -453,21 +473,21 @@ Serial arduinoPort = null;
 // The format is [ledId1,Alpha1,ledId2, Alpha2 ..etc] but no comma, since each led Id and alpha is exactly 1 byte, so no comma is
 // needed.
 void updateLEDBoards() {
-  arduinoPort.write('['); //indicates next serial byte will be a led ID
+  //arduinoPort.write('['); //indicates next serial byte will be a led ID
   for (int i = 0; i< balloons.length; ++i) {
     byte led = (byte)balloons[i].led;
     assert(led == i);
     byte level = (byte)balloons[i].alph;    
     // arduinoPort.write(led);
-    arduinoPort.write(level);
+    //arduinoPort.write(level);
   }
-  arduinoPort.write(']'); //completed filling  array with balloon data, now tell Arduino to update boards
+  //arduinoPort.write(']'); //completed filling  array with balloon data, now tell Arduino to update boards
 }
 
 // we reserve a special command for telling the arduino to push the data to the LEDs
 void refreshLeds() {
   // used L -- where L stands for Load?
-  arduinoPort.write('L');
+  //arduinoPort.write('L');
 }
 
 
@@ -476,7 +496,7 @@ public class GenericButton {
   int x, y;
   int buttonfill = 100;
   String label;
-  int WIDTH = 43, HEIGHT = 20;
+  int WIDTH = 35, HEIGHT = 20;
   float text_width;
   
   
@@ -566,4 +586,19 @@ public class AudioFrequencySelector extends GenericButton{
     }    
   }
 }
-   
+void checkSliders() {
+  
+  if (sliderDamp.slide || sliderScale.slide || sliderThreshold.slide) {
+    byte[] sliderValues = new byte[3];
+    sliderValues[0] = byte(sliderDamp.p);
+    sliderValues[1] = byte(sliderScale.p);
+    sliderValues[2] = byte(sliderThreshold.p);
+    myPort.write(sliderValues);
+    //myPort.write(sliderScale.p);
+    //myPort.write(sliderThreshold.p);
+    
+  }
+  
+  
+  
+}
