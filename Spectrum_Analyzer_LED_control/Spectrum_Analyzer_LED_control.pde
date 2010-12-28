@@ -95,39 +95,10 @@ void loop() {
     
     
   
-  //load 7 Left bands into Matrix arrays. if the value is below the threshold then set the LED to 0. this is to
-  //prevent flickering from line noise when audio is not playing
-  if (int(scale[0]) > audioThreshold) {
-    
-    powerBoard1[0] = int(spectrumBuffer[0]);
-  } else {
-    powerBoard1[0] = 0;
-  }
-    
-  if (int(scale[1]) > audioThreshold) {
-    
-    powerBoard1[1] = int(spectrumBuffer[1]);
-  } else {
-    powerBoard1[1] = 0;
-  }
-  
-  for (Band = 2; Band <7; Band++) {
-    
-    if (int(scale[Band]) > audioThreshold) {
-    
-    ledBoard[Band - 2] = int(spectrumBuffer[Band]);
-    } else {
-      ledBoard[Band - 2] = 0;
-    }
-      
-  }
-  
-   //send scaled Spectrum values to Processing
-   Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
-   myMatrix.changePowerBoard(0, powerBoard1);
-   delay(10); //what is the minimum delay? 7ms? 5ms?
-   myMatrix.changeLEDBoard(1, ledBoard, ledBoard, ledBoard);
-   delay(10);
+
+   //send 7 bands to first 7 LEDs in temporary prototype setup
+   sendSeven();
+   
    checkSerial();
 }
 
@@ -259,6 +230,46 @@ void enterLEDCheckMode() {
   
   
   }
+  
+  
+void sendSeven() { //send 7 bands to prototype setup
+  
+    //load 7 Left bands into Matrix arrays. if the value is below the threshold then set the LED to 0. this is to
+  //prevent flickering from line noise when audio is not playing
+  
+   if (int(scale[0]) > audioThreshold) {
+    
+    powerBoard1[0] = int(spectrumBuffer[0]);
+  } else {
+    powerBoard1[0] = 0;
+  }
+    
+  if (int(scale[1]) > audioThreshold) {
+    
+    powerBoard1[1] = int(spectrumBuffer[1]);
+  } else {
+    powerBoard1[1] = 0;
+  }
+  
+  for (Band = 2; Band <7; Band++) {
+    
+    if (int(scale[Band]) > audioThreshold) {
+    
+    ledBoard[Band - 2] = int(spectrumBuffer[Band]);
+    } else {
+      ledBoard[Band - 2] = 0;
+    }
+      
+  }
+  
+   //send scaled Spectrum values to Processing
+   Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
+   myMatrix.changePowerBoard(0, powerBoard1);
+   delay(10); //what is the minimum delay? 7ms? 5ms?
+   myMatrix.changeLEDBoard(1, ledBoard, ledBoard, ledBoard);
+   delay(10); 
+  
+}
     
   
   
