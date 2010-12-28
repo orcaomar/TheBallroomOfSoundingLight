@@ -8,7 +8,7 @@ PFont fontA; //global variable for the font
 Serial myPort = null; 
 
 
-
+int MAX_BANDS = 14;
 int BALLOON_MAX_Y = audioY - 45;
 
 // create three slider objects
@@ -20,6 +20,7 @@ AudioFrequencySelector[] audioSelectors;
 AudioFrequencySelector audioDeselector;
 
 GenericButton ledCheckButton;
+LayoutUpdateButton layoutUpdateButton;
 
 void setupAudio() {
 
@@ -34,7 +35,7 @@ void setupAudio() {
   audioDeselector = new AudioFrequencySelector(audioX + 50, audioY + 275, "CLR", -1); //deselect
   
   ledCheckButton = new GenericButton (audioX + 50, audioY + 295, "CHK");
-
+  layoutUpdateButton = new LayoutUpdateButton(audioX + 50, audioY + 315);
 
 
   sliderScale=new Slider(audioX - 80,audioY+5,255, 255, "S"); // define slider objects
@@ -93,6 +94,8 @@ void drawAudio() {
   audioDeselector.checkPressed();
   ledCheckButton.draw();
   ledCheckButton.checkPressed();
+  layoutUpdateButton.draw();
+  layoutUpdateButton.checkPressed();
   
   text("LEFT", audioX + 50, audioY + 255);
   text("RIGHT", audioX + 50 + 280, audioY + 255);
@@ -181,7 +184,7 @@ Balloon[] leftTopBalloons = {
   // small
   new Balloon(136, 0, SMALL),  new Balloon(68, 82, SMALL),   new Balloon(260, 51, SMALL), new Balloon(52, 140, SMALL),
   // top tiny
-  new Balloon(283, 2, TINY),  new Balloon( 214,  71, TINY),   new Balloon( 116,  125, TINY), new Balloon( 172,  131, TINY), 
+  new Balloon(275, 2, TINY),  new Balloon( 214,  71, TINY),   new Balloon( 116,  125, TINY), new Balloon( 172,  131, TINY), 
   // top large
   new Balloon(157, 75, MEDIUM),  new Balloon( 212, 10 , MEDIUM),
   new Balloon(250, 132, LARGE)
@@ -194,12 +197,20 @@ Balloon[] xAxisBalloons = {
 
 Balloon[] yAxisBalloons = { 
   // small
-  new Balloon(XMID, 11, SMALL),  new Balloon(XMID, 86, LARGE)
+  new Balloon(XMID, 11, SMALL),  new Balloon(XMID, 86, LARGE),
+  
+  // balloons on the far right of the layout
+  new Balloon(560, 30, TINY), new Balloon(630, 110, TINY), new Balloon(700, 105, TINY), new Balloon(680, 30, MEDIUM) 
 };
 
-// ToDo: Omar: Add 2 4', 2 3' and 1 2' balloons to right side of room (they are the only non-symmetrically positioned balloons)
+Balloon lonelyBalloon = new Balloon(710, YMID, SMALL);
 
-Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2];
+Balloon fakeSmallBalloon1 = new Balloon(0, 0, SMALL);
+Balloon fakeSmallBalloon2 = new Balloon(0, 50, SMALL);
+Balloon fakeSmallBalloon3 = new Balloon(0, 100, SMALL);
+
+
+Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2 + 1 + 3];
 
 
 
@@ -213,7 +224,7 @@ static byte NEXT_BALLOON_LED = 0;
 public class Balloon {
   int x, y, diameter;
   int led;
-  int freqId = -1;
+  int freqId = MAX_BANDS + 1;
   int alph = 0;
   int text_width;
   int text_height;
@@ -297,8 +308,16 @@ void setup() {
   for (int i = 0; i < xAxisBalloons.length; ++i) {
     balloons[L + i] = new Balloon(xAxisBalloons[i].x + (XMID - xAxisBalloons[i].x) * 2, xAxisBalloons[i].y, xAxisBalloons[i].diameter);
   }
+  
+  balloons[balloons.length - 4] = lonelyBalloon;
 
-  sortBalloonsArrayByLed();
+  // FAKE BALLOONS FIX THIS
+  balloons[balloons.length - 3] = fakeSmallBalloon1;
+  balloons[balloons.length - 2] = fakeSmallBalloon2;
+  balloons[balloons.length - 1] = fakeSmallBalloon3;
+
+
+  sortBalloonsArrayBySize();
   
   // now setup the audio
   setupAudio();
@@ -309,7 +328,7 @@ void setup() {
 
 // this is an inefficient sorting algorithm for making sure the balloons are sorted by LED id. this way, we don't
 // need to send the LED id, since we'll always be sending them in order.
-void sortBalloonsArrayByLed() {
+void sortBalloonsArrayBySize() {
  ArrayList allBalloons = new ArrayList(balloons.length);
   for (int i = 0; i < balloons.length; ++i) {
     allBalloons.add(balloons[i]);
@@ -318,12 +337,12 @@ void sortBalloonsArrayByLed() {
   ArrayList sortedBalloons = new ArrayList(balloons.length);
   while (allBalloons.size() > 0) {
     // find the minimum LED id in the array
-    int  minLed = balloons.length + 1;
+    int  maxSize = TINY - 1;
     int minIndex = balloons.length + 1;
     for (byte i = 0; i < allBalloons.size(); ++i) {
       Balloon b = (Balloon)allBalloons.get(i);
-      if (minLed > b.led) {
-        minLed = b.led;
+      if (maxSize < b.diameter) {
+        maxSize = b.diameter;
         minIndex = i;
       }
     }
@@ -333,6 +352,7 @@ void sortBalloonsArrayByLed() {
   
   for (int i = 0; i < sortedBalloons.size(); ++i) {
     balloons[i] = (Balloon)sortedBalloons.get(i);
+    balloons[i].led = i;
   }
  
 }
@@ -482,10 +502,6 @@ public class GenericButton {
   int WIDTH = 35, HEIGHT = 20;
   float text_width;
   
-  
-
-   
-  
   GenericButton(int x, int y, String label) {
     this.x = x;
     this.y = y;
@@ -540,6 +556,15 @@ void checkOver() {
   }
 }
 
+public class LayoutUpdateButton extends GenericButton {
+  LayoutUpdateButton(int x, int y) {
+    super(x, y, "UP");
+  }
+  void execute() {
+    writeLayout();
+  }  
+}
+
 public class BalloonTypeSelector extends GenericButton{
   int balloonType;
   BalloonTypeSelector(int balloonType, String label, int x, int y) {
@@ -588,6 +613,7 @@ void checkSliders() {
 }
 
 void writeLayout() { //write balloon freqIDs to serial port
+  
   byte[] bandAssign = new byte[balloons.length + 1];
   
   bandAssign[0] = byte('B'); //first byte is B to indicate balloon assignment data is coming in
