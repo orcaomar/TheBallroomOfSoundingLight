@@ -1,14 +1,8 @@
-// AUDIO STUFF
-//
-//
-//import processing.serial.*;
-//import krister.Ess.*;        // import audio library
+
 int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
-int audioX = 150, audioY = 450;
-//FFT myfft;           // create new FFT object (audio spectrum)
-//AudioInput myinput;  // create input object
-//int bufferSize=256;  // variable for number of frequency bands
-//int audioScale;      // variable to control scaing
+int audioX = 150, audioY = 450; //initial audio region coordinates
+boolean ledCheckMode = false; //mode for checking LEDs one by one
+
 
 PFont fontA; //global variable for the font
 Serial myPort = null; 
@@ -17,49 +11,42 @@ Serial myPort = null;
 
 int BALLOON_MAX_Y = audioY - 45;
 
-// create two slider objects
+// create three slider objects
 Slider sliderScale;   //Audio Scaling slider
 Slider sliderDamp;   //Damping slider
 Slider sliderThreshold; //Threshold slider
 
 AudioFrequencySelector[] audioSelectors;
+AudioFrequencySelector audioDeselector;
+
+GenericButton ledCheckButton;
 
 void setupAudio() {
-  /*
-  Ess.start(this);  // start audio
-  myinput=new AudioInput(bufferSize); // define input
-  myfft=new FFT(bufferSize*2);        // define fft
-  myinput.start();
 
-  myfft.damp(.01);        // damping creates smoother motion
-  myfft.equalizer(true);
-  myfft.limits(.005,.01);
-  myfft.averages(NUM_FREQS);      // controls number of averages
-  */
-  // create selectors for each average
-  // 14 bands in total
+  // create selectors for each band
+  // 14 bands in total: 7 left and 7 right
   audioSelectors = new AudioFrequencySelector[NUM_FREQS+7];
   for (int i = 0; i < NUM_FREQS; ++i) {
     audioSelectors[i] = new AudioFrequencySelector(audioX + (i*35)+50, audioY + 255, str(i+1), i);
     audioSelectors[i+7] = new AudioFrequencySelector(audioX + ((i+7)*35)+50 + 35, audioY + 255, str(i+1), i+7);
   }
+  
+  audioDeselector = new AudioFrequencySelector(audioX + 50, audioY + 275, "CLR", -1); //deselect
+  
+  ledCheckButton = new GenericButton (audioX + 50, audioY + 295, "CHK");
 
 
 
-  sliderScale=new Slider(audioX - 80,audioY+5,255, 255, "Scaling"); // define slider objects
-  sliderDamp=new Slider(audioX -40,audioY+5,255, 255, "Damping");
-  sliderThreshold = new Slider(audioX, audioY+5, 255, 255, "Threshold");
+  sliderScale=new Slider(audioX - 80,audioY+5,255, 255, "S"); // define slider objects
+  sliderDamp=new Slider(audioX -40,audioY+5,255, 255, "D");
+  sliderThreshold = new Slider(audioX, audioY+5, 255, 255, "T");
   sliderScale.p=85;   // default position of sliders
   sliderDamp.p=30;
   sliderThreshold.p = 20;
 }
-/*
-int getAlpha(int freqId) {
-  return int(constrain(myfft.averages[freqId]*audioScale,0,255));
-}
-*/
+
 void drawAudio() {
-  
+  //read in 14 byte array containg 7 left bands (0-6) and 7 right band (7-13)
   byte[] inBuffer = new byte[14];
   while (myPort.available() >=14) {
     
@@ -74,24 +61,7 @@ void drawAudio() {
 
  
 
-  //audioScale=sliderScale.p*20; // adjust audio scale according to slider
-  //myfft.damp(map(sliderDamp.p,0,255,.01,.1)); // adjust daming
-
-  //for (int i=0; i<bufferSize;i++) {  // draw frequency spectrum
-    //rect((i*1)+50,330,1,myfft.spectrum[i]*(-audioScale));
-  //}
-  
-  
-  /*
-  for (int i=0; i<NUM_FREQS; i++) { // draw averages
-    int alph = getAlpha(i);
-    fill(255,0,0,alph);
-    stroke(255,0,0, 100); 
-    rect(audioX + ((NUM_FREQS-i)*43)+50, audioY + 255 ,43, -int(constrain(myfft.averages[i]*(audioScale),0,255)));
-    //fill(255,0,0);
-    //rect((i*43)+50,330+a,43,1);
-  }
-  */
+ 
   pushStyle();
   for (int band=0; band<7; band++) { // draw equalizer
 
@@ -106,7 +76,7 @@ void drawAudio() {
     //draw threshold
     stroke(100);
     line(audioX + 50, (audioY + 255 - sliderThreshold.p), audioX + 50 + (7*35), (audioY + 255 - sliderThreshold.p));
-    line(audioX + ((band+7)*35)+50 + 35, (audioY + 255 - sliderThreshold.p), audioX + 50 + 275 + (7*35), (audioY + 255 - sliderThreshold.p));
+    line(audioX + ((band+7)*35)+50 + 35, (audioY + 255 - sliderThreshold.p), audioX + 50 + 280 + (7*35), (audioY + 255 - sliderThreshold.p));
     
 
     
@@ -119,12 +89,22 @@ void drawAudio() {
     audioSelectors[i].checkPressed();
   }
   
+  audioDeselector.draw();
+  audioDeselector.checkPressed();
+  ledCheckButton.draw();
+  ledCheckButton.checkPressed();
+  
+  text("LEFT", audioX + 50, audioY + 255);
+  text("RIGHT", audioX + 50 + 280, audioY + 255);
+  
   //pushStyle();
   
   for (int i = 0; i < balloons.length; ++i) {
     int id = balloons[i].freqId;
     if (id >= 0) {
       balloons[i].alph =  int(inBuffer[id]);
+    } else {
+      balloons[i].alph = 0;
     }
   }
   
@@ -133,14 +113,9 @@ void drawAudio() {
 
 }
 
-// sets up audio input
-/*
-public void audioInputData(AudioInput theInput) {
-  myfft.getSpectrum(myinput);
-}
-*/
 
-class Slider {
+
+class Slider { //slider height and slider name not currently implemented
   int x, y, s, p, h;  //x pos, y pos, slider maximum value, slider position, height
   String name;
   boolean slide;
@@ -167,6 +142,7 @@ class Slider {
     fill(150);
     rect(x-10, s-p+y, 20, 14);  //slider button
     
+    text(name, x, y+s+30);
 
     
     if (slide=true && mousePressed==true && mouseX<x+15 && mouseX>x-15){
@@ -185,7 +161,7 @@ class Slider {
 //
 // END AUDIO STUFF
 
-// used to send data to the arduino
+
 
 
 
@@ -226,7 +202,7 @@ Balloon[] yAxisBalloons = {
 Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2];
 
 
-//rename the balloons sizes to correspond to their actual physical size
+
 BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "2'", 10, 450), 
                                    new BalloonTypeSelector(SMALL, "3'", 10, 490), 
                                    new BalloonTypeSelector(MEDIUM, "4'", 10, 530), 
@@ -261,7 +237,9 @@ public class Balloon {
     textAlign(CENTER, CENTER);
     text(str(led), X + x, Y + y +15);
     if (freqId >= 0) {
-    text(str(freqId+1), X + x, Y + y);
+    //String freqIDString = concat(str(freqId+1), "L");
+    
+    text(str(freqId +1), X + x, Y + y);
     }
     
     
@@ -283,7 +261,7 @@ public class Balloon {
 void setup() {
  import processing.serial.*;
   size(XMID*2+150, 800);
-  frameRate(30);
+  frameRate(18);
   //background(0);
   //fill(255);
   
@@ -324,6 +302,7 @@ void setup() {
   
   // now setup the audio
   setupAudio();
+  //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
   
 }
@@ -403,6 +382,10 @@ boolean inAudioSelectors() {
     if (audioSelectors[i].isPressed()) {
       return true;
     }
+  }
+  
+  if (audioDeselector.isPressed()) {
+   return true; 
   }
   
   return false;
@@ -589,10 +572,11 @@ public class AudioFrequencySelector extends GenericButton{
 void checkSliders() {
   
   if (sliderDamp.slide || sliderScale.slide || sliderThreshold.slide) {
-    byte[] sliderValues = new byte[3];
-    sliderValues[0] = byte(sliderDamp.p);
-    sliderValues[1] = byte(sliderScale.p);
-    sliderValues[2] = byte(sliderThreshold.p);
+    byte[] sliderValues = new byte[4];
+    sliderValues[0] = byte('S'); //first byte is S to indicate slider data is coming in
+    sliderValues[1] = byte(sliderDamp.p);
+    sliderValues[2] = byte(sliderScale.p);
+    sliderValues[3] = byte(sliderThreshold.p);
     myPort.write(sliderValues);
     //myPort.write(sliderScale.p);
     //myPort.write(sliderThreshold.p);
