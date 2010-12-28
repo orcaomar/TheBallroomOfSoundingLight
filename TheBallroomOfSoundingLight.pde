@@ -588,13 +588,13 @@ void checkSliders() {
 }
 
 void writeLayout() { //write balloon freqIDs to serial port
-  byte[] bandAssign = new byte[balloons.length + 2];
+  byte[] bandAssign = new byte[balloons.length + 1];
   
   bandAssign[0] = byte('B'); //first byte is B to indicate balloon assignment data is coming in
   //bandAssign[1] = byte(balloons.length); //second byte is the number of balloons.
-  for (int i = 0; i < ballons.length; i++) {
+  for (int i = 0; i < balloons.length; i++) {
    
-    bandAssign[i+1s] = byte(balloons[i].freqId);
+    bandAssign[i+1] = byte(balloons[i].freqId);
     
   }
   
