@@ -18,6 +18,7 @@ byte ledBoard[64]; //array for LEDMatrix
 byte Band; //frequency bands
 int bandAssign[128]; //array to hold band assignment values
 int BALLOON_NUMBER = 65;
+int MAX_BANDS = 14;
 
 void setup() {
   
@@ -155,7 +156,7 @@ void getNewLayout() {
 
 byte getSpectrumFromBandAssignment(int bandAssignmentIndex) {
   int i = bandAssign[bandAssignmentIndex];
-  if (i < 0) {
+  if (i >= MAX_BANDS) {
     return 0;
   } else {
     return spectrumBuffer[i];
@@ -209,13 +210,24 @@ void updateBoards() {
    //delay(10);
    myMatrix.changeLEDBoard(2, ledBoard, ledBoard, ledBoard);
    delay(10);
-  
+   /*
+   byte fullOn[64];
+   
+   for (int i = 0; i < 64; i++) {
+     
+     fullOn[i] = 255;
+     
+   }
+   
+   myMatrix.changeLEDBoard(2, fullOn , fullOn, fullOn);
+  delay(10);
+  */
 }
 
 
 void setBandsUnassigned() { //rest all LED levels to 0
   for (int i = 0; i < BALLOON_NUMBER; ++i) {
-    bandAssign[i] = -1;
+    bandAssign[i] = MAX_BANDS + 1;
   }
 }
 
@@ -224,20 +236,34 @@ void enterLEDCheckMode() {
   //set all LEDs to zero
   setBandsUnassigned();
   
-  byte serialIn = 0;
+  byte serialIn = Serial.read();
   
   while (serialIn != 'E') { //'E' indicates end
+    if (serialIn == 'S') {
+      audioDamp = Serial.read();
+      audioScale = Serial.read();
+      audioThreshold = Serial.read(); 
+    } else if (serialIn == 'D') {
+      byte led = Serial.read();
+      byte on = Serial.read();
+      if (on != 0) {
+        bandAssign[led] = 0; // put the scaler value into band 0 
+      } else {
+        bandAssign[led] = MAX_BANDS + 1;
+      }
+    }
     
-  serialIn = Serial.read();
-  
-  
-  
-  
+    spectrumBuffer[0] = audioThreshold; // while in check mode, the spectrum is ONLY the audio scaler value, not the true audio
+    serialIn = Serial.read();
+    
+    // display what the user sent in check mode
+    loadLevelArrays();
+    updateBoards();  
   }
   
-  
-  
-  }
+  // leaving check mode, reset everything
+  setBandsUnassigned();
+}
   
   
 void sendSeven() { //send 7 bands to prototype setup

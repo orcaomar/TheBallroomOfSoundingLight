@@ -19,7 +19,7 @@ Slider sliderThreshold; //Threshold slider
 AudioFrequencySelector[] audioSelectors;
 AudioFrequencySelector audioDeselector;
 
-GenericButton ledCheckButton;
+LedCheckButton ledCheckButton;
 LayoutUpdateButton layoutUpdateButton;
 
 void setupAudio() {
@@ -32,9 +32,9 @@ void setupAudio() {
     audioSelectors[i+7] = new AudioFrequencySelector(audioX + ((i+7)*35)+50 + 35, audioY + 255, str(i+1), i+7);
   }
   
-  audioDeselector = new AudioFrequencySelector(audioX + 50, audioY + 275, "CLR", -1); //deselect
+  audioDeselector = new AudioFrequencySelector(audioX + 50, audioY + 275, "CLR", MAX_BANDS + 1); //deselect
   
-  ledCheckButton = new GenericButton (audioX + 50, audioY + 295, "CHK");
+  ledCheckButton = new LedCheckButton (audioX + 50, audioY + 295);
   layoutUpdateButton = new LayoutUpdateButton(audioX + 50, audioY + 315);
 
 
@@ -104,7 +104,7 @@ void drawAudio() {
   
   for (int i = 0; i < balloons.length; ++i) {
     int id = balloons[i].freqId;
-    if (id >= 0) {
+    if (id < MAX_BANDS) {
       balloons[i].alph =  int(inBuffer[id]);
     } else {
       balloons[i].alph = 0;
@@ -247,7 +247,7 @@ public class Balloon {
     //text_width = round(textWidth(str(freqId)));
     textAlign(CENTER, CENTER);
     text(str(led), X + x, Y + y +15);
-    if (freqId >= 0) {
+    if (freqId < MAX_BANDS) {
     //String freqIDString = concat(str(freqId+1), "L");
     
     text(str(freqId +1), X + x, Y + y);
@@ -447,6 +447,10 @@ void highlightSelectedBalloons() {
   for (int i = 0; i < balloons.length; ++i) { 
     if (balloons[i].inBalloon(mx, my)) {
       balloons[i].highlight = !balloons[i].highlight;
+      if (ledCheckMode) {
+        byte[] data = {'D', balloons[i].led, balloons[i].highlight ? 1 : 0};
+        Serial.write(data);  
+      }
       return;
     }
   }
@@ -562,6 +566,16 @@ public class LayoutUpdateButton extends GenericButton {
   }
   void execute() {
     writeLayout();
+  }  
+}
+
+public class LayoutUpdateButton extends GenericButton {
+  LayoutUpdateButton(int x, int y) {
+    super(x, y, "CHK");
+  }
+  void execute() {
+    ledCheckMode = !ledCheckMode;
+    Serial.write(ledCheckMode ? 'C' : 'E');
   }  
 }
 
