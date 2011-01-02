@@ -250,7 +250,11 @@ public class Balloon {
     if (freqId < MAX_BANDS) {
     //String freqIDString = concat(str(freqId+1), "L");
     
-    text(str(freqId +1), X + x, Y + y);
+    if (freqId < 7) {
+        text(str(freqId +1) + "L", X + x, Y + y);
+      } else {
+        text(str(freqId +1 - 7) + "R", X + x, Y + y);
+      }
     }
     
     
@@ -448,8 +452,8 @@ void highlightSelectedBalloons() {
     if (balloons[i].inBalloon(mx, my)) {
       balloons[i].highlight = !balloons[i].highlight;
       if (ledCheckMode) {
-        byte[] data = {'D', balloons[i].led, balloons[i].highlight ? 1 : 0};
-        Serial.write(data);  
+        byte[] data = {'D', byte(balloons[i].led), balloons[i].highlight ? byte(1) : byte(0)};
+        myPort.write(data);  
       }
       return;
     }
@@ -569,13 +573,13 @@ public class LayoutUpdateButton extends GenericButton {
   }  
 }
 
-public class LayoutUpdateButton extends GenericButton {
-  LayoutUpdateButton(int x, int y) {
+public class LedCheckButton extends GenericButton {
+  LedCheckButton(int x, int y) {
     super(x, y, "CHK");
   }
   void execute() {
     ledCheckMode = !ledCheckMode;
-    Serial.write(ledCheckMode ? 'C' : 'E');
+    myPort.write(ledCheckMode ? 'C' : 'E');
   }  
 }
 
