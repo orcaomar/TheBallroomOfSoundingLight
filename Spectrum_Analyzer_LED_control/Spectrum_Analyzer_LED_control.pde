@@ -20,6 +20,18 @@ int bandAssign[128]; //array to hold band assignment values
 int BALLOON_NUMBER = 65;
 int MAX_BANDS = 14;
 
+boolean processingConnected = false;
+
+int txLEDpin = 6; //pins for transmit and receive status LEDs
+int rxLEDpin = 7;
+
+int txLEDstate = LOW;
+int rxLEDstate = LOW;
+
+long txTime = 0; //variables to hold millisecond time 
+long rxTime = 0;
+long blinkTime = 30; //interval between blinks
+
 void setup() {
   
   setBandsUnassigned();
@@ -27,6 +39,11 @@ void setup() {
   //Setup pins to drive the spectrum analyzer. It needs RESET and STROBE pins.
   pinMode(5, OUTPUT);
   pinMode(4, OUTPUT);
+  pinMode(txLEDpin, OUTPUT);
+  pinMode(rxLEDpin, OUTPUT);
+  
+  digitalWrite(txLEDpin, LOW);
+  digitalWrite(rxLEDpin, LOW);
  
 
   //Init spectrum analyzer
@@ -35,6 +52,8 @@ void setup() {
   digitalWrite(4,HIGH);
   digitalWrite(4,LOW);
   digitalWrite(5,LOW);
+  
+  //Start serial communication
   Serial.begin(115200); 
   
 }
@@ -43,13 +62,16 @@ void setup() {
 // Function to read 7 band equalizers
  
 void loop() {
-  
+  //digitalWrite(txLEDpin, LOW);
   //calculate damping, audio scaling values from serial input
   damp = 255.0/(audioDamp + 255.0);
   scaler = (audioScale/255.0)*3; //maximum 3X boost
   
   //Band 0 = Lowest Frequencies.
   //load the latest frequency band levels.
+  
+  //digitalWrite(5, HIGH);
+  //digitalWrite(5, LOW);
   for(Band=0;Band <7; Band++) {
     
     int bufferLeft = analogRead(0);
@@ -70,7 +92,7 @@ void loop() {
     //do the same for the Right spectrum
     if(spectrumRight[Band] > bufferRight) {
       
-      //damp = audioDamp
+      
       spectrumRight[Band] = int(spectrumRight[Band]*damp);
     
     } else {
@@ -109,6 +131,13 @@ void loop() {
    //send 7 bands to first 7 LEDs in temporary prototype setup
    //sendSeven();
    Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
+   
+   if (processingConnected) { //if processing is connected then blink the tx LED
+     blinkTransmitLED();
+   } else {
+       digitalWrite(txLEDpin, LOW); //otherwise, turn it off
+   }
+   //digitalWrite(txLEDpin, HIGH);
    loadLevelArrays();
    updateBoards();
    
@@ -117,7 +146,13 @@ void loop() {
 
 void checkSerial() { //check for Serial activity and update 
 
-  while (Serial.available() >= 4) {
+  if (Serial.available() <= 0) { //if not serial available make sure LED is off
+    
+    digitalWrite(rxLEDpin, LOW);
+    
+  }
+  while (Serial.available() > 0) {
+    blinkReceiveLED();
     byte firstByte = Serial.read();
     
     if (firstByte == 'S') { //read in slider values  
@@ -128,7 +163,17 @@ void checkSerial() { //check for Serial activity and update
       getNewLayout();
     } else if (firstByte == 'C') { //enter LED check mode
       enterLEDCheckMode();
-    }
+    } else if (firstByte == 'X') { //Processing has exited and there is nothing reading the serial being sent
+      processingConnected = false;
+      
+    } else if (firstByte == 'T') { //Processing is connected
+      
+      processingConnected = true;
+      
+      }
+      
+    
+    
     /*
     Serial.print(audioDamp);
     Serial.print(' ');
@@ -139,6 +184,8 @@ void checkSerial() { //check for Serial activity and update
     
     
   }
+  
+   //digitalWrite(rxLEDpin, LOW); //when serial isn't available turn rxLED off
   
 }
 
@@ -151,6 +198,7 @@ void getNewLayout() {
  for (int i = 0; i < BALLOON_NUMBER; i++) { //read new values into bandAssign array
    bandAssign[i] = Serial.read(); 
  }  
+ //digitalWrite(rxLEDpin, LOW);
 }
  
 
@@ -163,7 +211,7 @@ byte getSpectrumFromBandAssignment(int bandAssignmentIndex) {
   }
 }
  
-void loadLevelArrays() { //load level values into Matrix arrays - still need to work in Threshold with if/else statement
+void loadLevelArrays() { //load level values into Matrix arrays 
 
  for (int i = 0; i < 6; i++) { //get first 12 values for six 2 LED balloons
      
@@ -205,11 +253,11 @@ void loadLevelArrays() { //load level values into Matrix arrays - still need to 
 void updateBoards() {
  
    myMatrix.changePowerBoard(0, powerBoard1);
-   delay(10);
-   //myMatrix.changePowerBoard(1, powerBoard2);
-   //delay(10);
+   delay(5);
+   myMatrix.changePowerBoard(1, powerBoard2);
+   delay(5);
    myMatrix.changeLEDBoard(2, ledBoard, ledBoard, ledBoard);
-   delay(10);
+   delay(5);
    /*
    byte fullOn[64];
    
@@ -232,7 +280,8 @@ void setBandsUnassigned() { //rest all LED levels to 0
 }
 
 void enterLEDCheckMode() {
-  
+  digitalWrite(rxLEDpin, HIGH); //turn rx LED on to indicate LEDCheckMode is active
+  digitalWrite(txLEDpin, LOW);  //turn off tx LED
   //set all LEDs to zero
   setBandsUnassigned();
   
@@ -266,42 +315,42 @@ void enterLEDCheckMode() {
 }
   
   
-void sendSeven() { //send 7 bands to prototype setup
+
+
+void blinkTransmitLED() { // uses Arduino tutorial 'Blink without Delay' example
+  unsigned long currentTime = millis();
   
-    //load 7 Left bands into Matrix arrays. if the value is below the threshold then set the LED to 0. this is to
-  //prevent flickering from line noise when audio is not playing
-  
-   if (int(scale[0]) > audioThreshold) {
+  if (currentTime - txTime > blinkTime) {
+     
+     txTime = currentTime;
     
-    powerBoard1[0] = int(spectrumBuffer[0]);
-  } else {
-    powerBoard1[0] = 0;
-  }
-    
-  if (int(scale[1]) > audioThreshold) {
-    
-    powerBoard1[1] = int(spectrumBuffer[1]);
-  } else {
-    powerBoard1[1] = 0;
-  }
-  
-  for (Band = 2; Band <7; Band++) {
-    
-    if (int(scale[Band]) > audioThreshold) {
-    
-    ledBoard[Band - 2] = int(spectrumBuffer[Band]);
-    } else {
-      ledBoard[Band - 2] = 0;
-    }
-      
+     if (txLEDstate == LOW) {
+        txLEDstate = HIGH;
+     } else {
+        txLEDstate = LOW;
+     } 
+     
+     digitalWrite(txLEDpin, txLEDstate);
   }
   
-   //send scaled Spectrum values to Processing
-   
-   myMatrix.changePowerBoard(0, powerBoard1);
-   delay(10); //what is the minimum delay? 7ms? 5ms?
-   myMatrix.changeLEDBoard(1, ledBoard, ledBoard, ledBoard);
-   delay(10); 
+  
+}
+
+void blinkReceiveLED() { // uses Arduino tutorial 'Blink without Delay' example
+  unsigned long currentTime = millis();
+  
+  if (currentTime - rxTime > blinkTime) {
+     
+     rxTime = currentTime;
+    
+     if (rxLEDstate == LOW) {
+        rxLEDstate = HIGH;
+     } else {
+        rxLEDstate = LOW;
+     } 
+     
+     digitalWrite(rxLEDpin, rxLEDstate);
+  }
   
 }
     

@@ -1,5 +1,5 @@
 
-int NUM_FREQS = 7;  //number of frequency bands - this could eventally be an input parameter with a default value
+int NUM_FREQS = 7;  //number of frequency bands - 7 left and 7 right
 int audioX = 150, audioY = 450; //initial audio region coordinates
 boolean ledCheckMode = false; //mode for checking LEDs one by one
 
@@ -7,6 +7,7 @@ boolean ledCheckMode = false; //mode for checking LEDs one by one
 PFont fontA; //global variable for the font
 Serial myPort = null; 
 
+int elapsedTime = 0;
 
 int MAX_BANDS = 14;
 int BALLOON_MAX_Y = audioY - 45;
@@ -48,6 +49,9 @@ void setupAudio() {
 
 void drawAudio() {
   //read in 14 byte array containg 7 left bands (0-6) and 7 right band (7-13)
+ 
+  sendConnectedStatus();
+  
   byte[] inBuffer = new byte[14];
   while (myPort.available() >=14) {
     
@@ -327,6 +331,9 @@ void setup() {
   setupAudio();
   //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
+  
+ 
+  
   
 }
 
@@ -645,4 +652,20 @@ void writeLayout() { //write balloon freqIDs to serial port
   myPort.write(bandAssign);
   
   
+}
+
+void  sendConnectedStatus() { //every interval send a signal indicating that Processing is connected
+  int interval = 2000;
+  int currentTime = millis();
+  
+  if (currentTime - elapsedTime > interval) {
+    
+    elapsedTime = currentTime;
+    myPort.write('T');
+  }
+  
+}
+
+void stop() {
+  myPort.write('X');
 }
