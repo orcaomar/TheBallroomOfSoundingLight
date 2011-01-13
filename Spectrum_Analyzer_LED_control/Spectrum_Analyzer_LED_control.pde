@@ -16,8 +16,8 @@ byte powerBoard1[32]; //array for PowerMatrix 1 level values
 byte powerBoard2[32]; //array for PowerMatrix 2 level values, currently not used
 byte ledBoard[64]; //array for LEDMatrix
 byte Band; //frequency bands
-int bandAssign[128]; //array to hold band assignment values
-int BALLOON_NUMBER = 65;
+int BALLOON_COUNT = 66;
+int bandAssign[66]; //array to hold band assignment values
 int MAX_BANDS = 14;
 
 boolean processingConnected = false;
@@ -55,6 +55,8 @@ void setup() {
   
   //Start serial communication
   Serial.begin(115200); 
+  
+  waitforSerial();
   
 }
 
@@ -130,6 +132,7 @@ void loop() {
 
    //send 7 bands to first 7 LEDs in temporary prototype setup
    //sendSeven();
+   
    Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
    
    if (processingConnected) { //if processing is connected then blink the tx LED
@@ -170,7 +173,11 @@ void checkSerial() { //check for Serial activity and update
       
       processingConnected = true;
       
-      }
+    } else if (firstByte == 'R') { // R for replay the data you have back to us
+      int balloon = Serial.read();
+      byte data[] = {bandAssign[balloon]};
+      Serial.write(data, 1);
+    }
       
     
     
@@ -190,14 +197,19 @@ void checkSerial() { //check for Serial activity and update
 }
 
 void getNewLayout() {
- while (Serial.available() <= BALLOON_NUMBER) {
+ while (Serial.available() < BALLOON_COUNT) {
    delay(10);
  } 
  
  //balloonNumber = Serial.read(); //second byte is the number of balloons
- for (int i = 0; i < BALLOON_NUMBER; i++) { //read new values into bandAssign array
-   bandAssign[i] = Serial.read(); 
- }  
+ // byte data[BALLOON_COUNT];
+ for (int i = 0; i < BALLOON_COUNT; i++) { //read new values into bandAssign array
+   bandAssign[i] = Serial.read();
+   // data[i] = bandAssign[i]; 
+ }
+
+ // Serial.write(data, BALLOON_COUNT);
+ 
  //digitalWrite(rxLEDpin, LOW);
 }
  
@@ -274,7 +286,7 @@ void updateBoards() {
 
 
 void setBandsUnassigned() { //rest all LED levels to 0
-  for (int i = 0; i < BALLOON_NUMBER; ++i) {
+  for (int i = 0; i < BALLOON_COUNT; ++i) {
     bandAssign[i] = MAX_BANDS + 1;
   }
 }
@@ -351,6 +363,10 @@ void blinkReceiveLED() { // uses Arduino tutorial 'Blink without Delay' example
      
      digitalWrite(rxLEDpin, rxLEDstate);
   }
+  
+}
+
+void waitforSerial() {
   
 }
     

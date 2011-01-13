@@ -64,7 +64,8 @@ void drawAudio() {
   sliderThreshold.render();
   popStyle();
 
- 
+  //display slider values above sliders
+  showSliderValues();
 
  
   pushStyle();
@@ -232,6 +233,7 @@ public class Balloon {
   int alph = 0;
   int text_width;
   int text_height;
+  String dataFromArduino = "omar";
   
   Balloon(int x, int y, int diameter) {
     this.x = x;
@@ -261,6 +263,14 @@ public class Balloon {
       }
     }
     
+    /*
+    byte[] data = {'R', byte(led)};
+    myPort.write(data);
+    byte[] inData = {'Z'};
+    if (myPort.readBytes(inData) == 1) {
+      dataFromArduino = str(inData[0]);
+      text(dataFromArduino, X +x, Y + y - 15);
+    } */
     
     if (highlight) {
       fill(200, 150);
@@ -277,19 +287,14 @@ public class Balloon {
 
 }
 
-void setup() {
- import processing.serial.*;
-  size(XMID*2+150, 800);
-  frameRate(18);
-  //background(0);
-  //fill(255);
-  
-  fontA = loadFont("Arial-BoldMT-14.vlw");//load font you want from data directory
-  textFont(fontA, 14); //all fonts are 14 point Arial
-  
-  smooth();
-  
-  // create the balloons array
+import guicomponents.*;
+GTextField titleTextField;
+LscSaveButton lscSaveButton;
+ArrayList configurations = new ArrayList();
+
+
+void resetBalloons() {
+// create the balloons array
   arrayCopy(leftTopBalloons, 0, balloons, 0, leftTopBalloons.length);
   
   // now fix up the right balloons by mirroring in the center axis
@@ -325,16 +330,36 @@ void setup() {
   balloons[balloons.length - 1] = fakeSmallBalloon3;
 
 
-  sortBalloonsArrayBySize();
+  sortBalloonsArrayBySize(); 
+}
+
+void setup() {
+ import processing.serial.*;
+  size(XMID*2+150+300, 800);
+  frameRate(18);
+  //background(0);
+  //fill(255);
+  
+  fontA = loadFont("Arial-BoldMT-14.vlw");//load font you want from data directory
+  textFont(fontA, 14); //all fonts are 14 point Arial
+  
+  smooth();
+  resetBalloons();
   
   // now setup the audio
   setupAudio();
   //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
   
+  waitforSerial(); //doesn't do anything yet
+  
+  // TELL ME THE # of BALLOONS
+ println("THE NUMBER OF BALLOONS IS: " + balloons.length); 
  
-  
-  
+  // now print out the text fields
+  loadConfigurations();
+  titleTextField = new GTextField(this, "Title Here", 10, 10, 100, 15);
+  lscSaveButton = new LscSaveButton(10, BALLOON_MAX_Y);
 }
 
 // this is an inefficient sorting algorithm for making sure the balloons are sorted by LED id. this way, we don't
@@ -385,21 +410,29 @@ void draw() {
     balloons[i].draw();   
   } 
   
-  /*if (mousePressed & mouseY < BALLOON_MAX_Y) {
-    drawHighlightRectangle();
-  }*/
-  
   // now draw audio stuff
   checkSliders();
   
   
   drawAudio();
-  /*
-  if (arduinoPort != null) {
-    updateLEDBoards();
-  }
-  */
   
+  drawConfigurations();  
+  
+}
+
+LoadSaveConfigurationView configViews[];
+
+void drawConfigurations() {
+  lscSaveButton.draw();
+  lscSaveButton.checkPressed();
+  configViews = new LoadSaveConfigurationView[configurations.size()];
+  int deltaY = 0;
+  for (int i = 0; i < configurations.size(); ++i) {
+    configViews[i] = new LoadSaveConfigurationView(800, 10 + deltaY, (LoadSaveConfiguration)configurations.get(i));
+    configViews[i].draw();
+    configViews[i].checkPressed();
+    deltaY += 30;
+  }
 }
 
 void clearHighlightedBalloons() {
@@ -435,6 +468,8 @@ void resetHighlightAreaBoundingBox() {
   startX = endX = startY = endY = -1;
 };
 
+boolean mouseClicked = false;
+
 void mousePressed() {
   // only remember where the highlighting started if we are in the highlight area
   if (mouseY < BALLOON_MAX_Y) {
@@ -452,6 +487,12 @@ void mouseReleased() {
   resetHighlightAreaBoundingBox();
 }
 
+
+void highlightBalloonLedCheckMode(int balloonIndex) {
+  byte[] data = {'D', byte(balloons[balloonIndex].led), balloons[balloonIndex].highlight ? byte(1) : byte(0)};
+  myPort.write(data);  
+}
+
 void highlightSelectedBalloons() {
   int mx = mouseX;
   int my = mouseY;
@@ -459,8 +500,7 @@ void highlightSelectedBalloons() {
     if (balloons[i].inBalloon(mx, my)) {
       balloons[i].highlight = !balloons[i].highlight;
       if (ledCheckMode) {
-        byte[] data = {'D', byte(balloons[i].led), balloons[i].highlight ? byte(1) : byte(0)};
-        myPort.write(data);  
+        highlightBalloonLedCheckMode(i);
       }
       return;
     }
@@ -510,42 +550,50 @@ void refreshLeds() {
 
 
 // THIS BUTTON CLASS LOOKS REALLY GHETTO. COULD BE MADE PRETTIER
+int globalLastButtonPressMs = 0;
+int DELAY_BETWEEN_BUTTON_PRESSES = 500;
 public class GenericButton {
-  int x, y;
+  int x, y, w, h;
   int buttonfill = 100;
   String label;
-  int WIDTH = 35, HEIGHT = 20;
   float text_width;
   
-  GenericButton(int x, int y, String label) {
+  GenericButton(int x, int y, int w, int h, String label) {
     this.x = x;
     this.y = y;
+    this.w = w;
+    this.h = h;
     this.label = label;
-    
+  }
+  
+  GenericButton(int x, int y, String label) {
+    this(x, y, 35, 20, label);
   }
   
   void draw() {
     fill(buttonfill);
     //fill(255);
-    rect(x, y, WIDTH, HEIGHT);
+    rect(x, y, w, h);
     fill(0);
     textAlign(LEFT, BOTTOM);
     text_width = textWidth(label);
-    text(label, x + round((WIDTH-text_width)/2), y + 18); //center text in labels
+    text(label, x + round((w-text_width)/2), y + 18); //center text in labels
     
   }
 
   boolean isPressed() {
     return (mousePressed && mouseX >= x && 
-	mouseX < (x + WIDTH) &&
+	mouseX < (x + w) &&
 	mouseY >= y &&
-	mouseY < (y + HEIGHT));
+	mouseY < (y + h));
   }
 
   void checkPressed() {
-    if  (isPressed()) {
+    int now = millis();
+    if  (isPressed() && (now - globalLastButtonPressMs > DELAY_BETWEEN_BUTTON_PRESSES)) {
+      globalLastButtonPressMs = now;
       fill(150); //hightlight button when clicked
-      rect(x, y, WIDTH, HEIGHT);
+      rect(x, y, w, h);
       execute();
     }
   }
@@ -650,8 +698,14 @@ void writeLayout() { //write balloon freqIDs to serial port
   }
   
   myPort.write(bandAssign);
-  
-  
+  println("Wrote band data!");
+  bandAssign = new byte[balloons.length];
+  if (myPort.readBytes(bandAssign) == balloons.length) {
+    println("DATA");
+    for (int i = 0; i < balloons.length; ++i) {
+      print(i + ": " + bandAssign[i] + ", ");
+    }
+  }
 }
 
 void  sendConnectedStatus() { //every interval send a signal indicating that Processing is connected
@@ -666,6 +720,167 @@ void  sendConnectedStatus() { //every interval send a signal indicating that Pro
   
 }
 
+void waitforSerial() {
+  
+  
+}
+
+void showSliderValues() {
+ fill(150);
+  float scaleLevel = (sliderScale.p/255.0)*3;
+  text(nf(scaleLevel, 1, 1),  audioX - 80, audioY-2);
+
+  float dampLevel = 255.0/(sliderDamp.p + 255.0);
+  
+  if (dampLevel < 1.0) {
+    text(nf(dampLevel, 0, 2).substring(1,4), audioX-40, audioY-2);
+  
+  } else {
+    text(nf(dampLevel, 0, 2).substring(0,3), audioX-40, audioY-2); 
+  }
+  
+  text(sliderThreshold.p, audioX, audioY-2); 
+  
+}
+
 void stop() {
   myPort.write('X');
 }
+
+// saving and loading configurations
+class LoadSaveConfiguration implements Serializable {
+  String title;
+  int[] freqIds;
+  int scal, damp, thresh;
+  
+  LoadSaveConfiguration(String title, int[] freqIds, int scal, int damp, int thresh) {
+    this.title = title;
+    this.freqIds = freqIds;
+    this.scal = scal;
+    this.damp = damp;
+    this.thresh = thresh;
+  }
+}
+
+public class LscSaveButton extends GenericButton {
+  LscSaveButton(int x, int y) {
+    super(x, y, "Save");
+  }  
+  
+  void execute() {
+    int[] freqIds = new int[balloons.length];
+    for (int i = 0; i < balloons.length; ++i) {
+      freqIds[i] = balloons[i].freqId;
+    }
+    configurations.add(new LoadSaveConfiguration(titleTextField.viewText(), freqIds, sliderScale.p, sliderDamp.p, sliderThreshold.p));
+    saveConfigurations();
+  }
+}
+
+public class LscLoadButton extends GenericButton{
+  LoadSaveConfiguration lsc;
+  LscLoadButton(int x, int y, int w, int h, LoadSaveConfiguration lsc) {
+    super(x, y, w, h, lsc.title);
+    this.lsc = lsc;
+  }
+   
+  void execute() {
+    // set the LEDs, sliders and title
+    println("RESETTING and LOADING");
+    for (int i = 0; i < balloons.length; ++i) {
+      balloons[i].freqId = lsc.freqIds[i];    
+    }
+    sliderDamp.p = lsc.damp;
+    sliderScale.p = lsc.scal;
+    sliderThreshold.p = lsc.thresh;
+
+    titleTextField.setText(lsc.title);    
+    
+  }
+}
+
+public class LscDeleteButton extends GenericButton{
+  LoadSaveConfiguration lsc;
+  LscDeleteButton(int x, int y, int w, int h, LoadSaveConfiguration lsc) {
+    super(x, y, w, h, "Delete");
+    this.lsc = lsc;
+  }
+   
+  void execute() {
+    configurations.remove(lsc);
+    saveConfigurations();
+  }
+}
+
+class LoadSaveConfigurationView {
+  LoadSaveConfiguration lsc;
+  LscLoadButton load;
+  LscDeleteButton delete;
+  
+  LoadSaveConfigurationView(int x, int y, LoadSaveConfiguration lsc) {
+    this.lsc = lsc;
+    load = new LscLoadButton(x, y, 100, 20, lsc);
+    delete = new LscDeleteButton(x + 110, y, 40, 20, lsc);
+  }
+
+  void draw() {
+    load.draw();
+    delete.draw();
+  }
+
+  void checkPressed() {
+    load.checkPressed();
+    delete.checkPressed();
+  }  
+}
+
+void loadConfigurations() {
+  try {
+     
+    FileInputStream fileIn = new FileInputStream("something.ser");
+    ObjectInputStream in = new ObjectInputStream(fileIn);
+    java.util.ArrayList li = (java.util.ArrayList)in.readObject();
+    for (int i = 0; i < li.size(); ++i) {
+      java.util.HashMap h = (java.util.HashMap)li.get(i);
+      LoadSaveConfiguration lsc = new LoadSaveConfiguration((String)h.get("title"), (int[])h.get("freqIds"), (Integer)(h.get("s")), (Integer) h.get("d"), (Integer)h.get("t"));
+      configurations.add(lsc);
+    }
+    
+    in.close();
+    fileIn.close();
+ 
+  } catch (ClassNotFoundException e) {
+      e.printStackTrace();
+  } catch(FileNotFoundException e) {
+      e.printStackTrace();
+  } catch (IOException e) {
+      e.printStackTrace();
+  }
+}
+
+void saveConfigurations() {
+  try{
+    FileOutputStream fileOut = new FileOutputStream("something.ser");
+    ObjectOutputStream out = new ObjectOutputStream(fileOut);
+    java.util.ArrayList li = new java.util.ArrayList();
+    for (int i = 0; i < configurations.size(); ++i) {
+      java.util.HashMap h = new java.util.HashMap();
+      LoadSaveConfiguration lsc = (LoadSaveConfiguration)configurations.get(i); 
+      h.put("freqIds", lsc.freqIds);
+      h.put("d", lsc.damp);
+      h.put("s", lsc.scal);
+      h.put("t", lsc.thresh);
+      h.put("title", lsc.title);
+      li.add(h);
+    }
+    out.writeObject(li);
+    out.close();
+    fileOut.close();
+     
+  } catch(FileNotFoundException e) {
+    e.printStackTrace();
+  } catch (IOException e) {
+    e.printStackTrace();
+  }
+}
+
