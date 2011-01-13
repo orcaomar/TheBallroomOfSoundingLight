@@ -201,7 +201,8 @@ void getNewLayout() {
    delay(10);
  } 
  
- //balloonNumber = Serial.read(); //second byte is the number of balloons
+ // put back the "data" stuff if you want to send data about what was written. useful for debugging, but can only work
+ // if other data, namely AUDIO data writing, is disabled.
  // byte data[BALLOON_COUNT];
  for (int i = 0; i < BALLOON_COUNT; i++) { //read new values into bandAssign array
    bandAssign[i] = Serial.read();

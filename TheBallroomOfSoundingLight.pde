@@ -698,6 +698,9 @@ void writeLayout() { //write balloon freqIDs to serial port
   }
   
   myPort.write(bandAssign);
+  
+  // useful for getting back what was sent out, to see if everything was written correctly. 
+  /*
   println("Wrote band data!");
   bandAssign = new byte[balloons.length];
   if (myPort.readBytes(bandAssign) == balloons.length) {
@@ -706,6 +709,7 @@ void writeLayout() { //write balloon freqIDs to serial port
       print(i + ": " + bandAssign[i] + ", ");
     }
   }
+  */
 }
 
 void  sendConnectedStatus() { //every interval send a signal indicating that Processing is connected
@@ -834,10 +838,12 @@ class LoadSaveConfigurationView {
   }  
 }
 
+String CONFIGURATION_FILE = "audio_configs.data";
+
 void loadConfigurations() {
   try {
      
-    FileInputStream fileIn = new FileInputStream("something.ser");
+    FileInputStream fileIn = new FileInputStream(CONFIGURATION_FILE);
     ObjectInputStream in = new ObjectInputStream(fileIn);
     java.util.ArrayList li = (java.util.ArrayList)in.readObject();
     for (int i = 0; i < li.size(); ++i) {
@@ -860,7 +866,7 @@ void loadConfigurations() {
 
 void saveConfigurations() {
   try{
-    FileOutputStream fileOut = new FileOutputStream("something.ser");
+    FileOutputStream fileOut = new FileOutputStream(CONFIGURATION_FILE);
     ObjectOutputStream out = new ObjectOutputStream(fileOut);
     java.util.ArrayList li = new java.util.ArrayList();
     for (int i = 0; i < configurations.size(); ++i) {
