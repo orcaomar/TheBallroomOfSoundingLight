@@ -209,9 +209,9 @@ Balloon[] yAxisBalloons = {
 
 Balloon lonelyBalloon = new Balloon(710, YMID, SMALL);
 
-Balloon fakeSmallBalloon1 = new Balloon(0, 0, SMALL);
-Balloon fakeSmallBalloon2 = new Balloon(0, 50, SMALL);
-Balloon fakeSmallBalloon3 = new Balloon(0, 100, SMALL);
+Balloon fakeSmallBalloon1 = new Balloon(0, 0, SMALL, false);
+Balloon fakeSmallBalloon2 = new Balloon(0, 50, SMALL, false);
+Balloon fakeSmallBalloon3 = new Balloon(0, 100, SMALL, false);
 
 
 Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.length * 2 + yAxisBalloons.length * 2 + 1 + 3];
@@ -232,18 +232,27 @@ public class Balloon {
   int alph = 0;
   int text_width;
   int text_height;
-  String dataFromArduino = "omar";
-  
-  Balloon(int x, int y, int diameter) {
+  boolean visible; // some balloons (the fake ones) are kept for numbering purposes, but they should not be visible
+
+  Balloon(int x, int y, int diameter, boolean visible) {
     this.x = x;
     this.y = y;
     this.diameter = diameter;
+    this.visible = visible;
     this.led = NEXT_BALLOON_LED++;
+  }
+  
+  Balloon(int x, int y, int diameter) {
+    this(x, y, diameter, true);
   }
 
   public boolean highlight = false;
 
   void draw() {
+    if (!visible) {
+      return;
+    }
+    
     fill(255, 0, 0, alph);
     stroke(66);
     ellipse(X + x, Y + y, diameter, diameter);  
@@ -550,12 +559,13 @@ void refreshLeds() {
 
 // THIS BUTTON CLASS LOOKS REALLY GHETTO. COULD BE MADE PRETTIER
 int globalLastButtonPressMs = 0;
-int DELAY_BETWEEN_BUTTON_PRESSES = 500;
 public class GenericButton {
   int x, y, w, h;
   int buttonfill = 100;
   String label;
   float text_width;
+  
+  int delayBetweenButtonPressesMs = 500;
   
   GenericButton(int x, int y, int w, int h, String label) {
     this.x = x;
@@ -589,7 +599,7 @@ public class GenericButton {
 
   void checkPressed() {
     int now = millis();
-    if  (isPressed() && (now - globalLastButtonPressMs > DELAY_BETWEEN_BUTTON_PRESSES)) {
+    if  (isPressed() && (now - globalLastButtonPressMs > delayBetweenButtonPressesMs)) {
       globalLastButtonPressMs = now;
       fill(150); //hightlight button when clicked
       rect(x, y, w, h);
@@ -642,6 +652,7 @@ public class BalloonTypeSelector extends GenericButton{
   BalloonTypeSelector(int balloonType, String label, int x, int y) {
     super(x, y, label);  
     this.balloonType = balloonType;
+    this.delayBetweenButtonPressesMs = 0; // we lower it because we want these buttons to respond quickly.
   }
    
   void execute() {
