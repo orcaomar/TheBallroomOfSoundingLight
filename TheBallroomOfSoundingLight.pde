@@ -52,35 +52,10 @@ void drawAudio() {
  
   sendConnectedStatus();
   
-  byte[] inBuffer = new byte[15];
-  while (myPort.available() >=15) {
-    
+  byte[] inBuffer = new byte[14];
+  while (myPort.available() >=14) {
     int numBytes = myPort.readBytes(inBuffer);
-    assert(numBytes == 15);
-    if (inBuffer[14] > 0) {
-      numBytes = inBuffer[14];
-      byte[] data = new byte[numBytes];
-      while (myPort.available() < numBytes) {
-        delay(1000);
-      }
-      int readBytes = myPort.readBytes(data);
-      assert(numBytes == readBytes);
-      if (bandAssign == null || bandAssign.length < numBytes + 1 ) {
-        myPort.clear();
-        break;
-      }
-      String errors = "";
-      for (int i = 0; i < numBytes; ++i) {
-        if (data[i] != bandAssign[i+1]) {
-          errors += ("" + i + ": " + data[i] + ", " + bandAssign[i+1] + ". ");
-        }
-      }
-      if (errors.length() > 0) {
-        println("ERRORS: " + errors);
-        myPort.clear();
-      }
-    }
-   
+    assert(numBytes == 14); 
   }
   pushStyle();
   sliderScale.render();  // render sliders
@@ -715,7 +690,7 @@ byte[] bandAssign;
 void writeLayout() { //write balloon freqIDs to serial port
   
   assert (balloons.length == 66);
-  bandAssign = new byte[balloons.length + 1];// + 4]; // + 4 for the checksum
+  bandAssign = new byte[balloons.length + 1];
   bandAssign[0] = byte('B'); //first byte is B to indicate balloon assignment data is coming in
   //bandAssign[1] = byte(balloons.length); //second byte is the number of balloons.
   for (int i = 0; i < balloons.length; i++) {
@@ -724,23 +699,6 @@ void writeLayout() { //write balloon freqIDs to serial port
     
   }
   
-  /*
-  try {
-    CRC32 crc = new java.util.zip.CRC32();
-    crc.update(bandAssign, 1, balloons.length);
-    int checksum = new Long(crc.getValue()).intValue();
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();  
-    DataOutputStream dos = new DataOutputStream(bos);
-    dos.writeInt(checksum);
-    dos.flush();  
-    byte[] data = bos.toByteArray(); 
-    bandAssign[balloons.length + 1] = data[0];
-    bandAssign[balloons.length + 2] = data[1];
-    bandAssign[balloons.length + 3] = data[2];
-    bandAssign[balloons.length + 4] = data[3];
-  } catch (Exception e) {
-    assert(false);
-  }*/
    myPort.write(bandAssign);
   // useful for getting back what was sent out, to see if everything was written correctly. 
   
@@ -802,12 +760,14 @@ void showSliderValues() {
 }
 
 void stop() {
+  println("STOPPING PROCESSING!");
   //writeLayout();
   myPort.write('X');
-  /*delay(5000);
+  delay(5000);
   myPort.clear();
   myPort.stop();
-  myPort = null;*/
+  myPort = null;
+  println("SERIAL PORT CLOSED");
 }
 
 // saving and loading configurations
