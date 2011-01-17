@@ -52,10 +52,34 @@ void drawAudio() {
  
   sendConnectedStatus();
   
-  byte[] inBuffer = new byte[14];
-  while (myPort.available() >=14) {
+  byte[] inBuffer = new byte[15];
+  while (myPort.available() >=15) {
     
-    myPort.readBytes(inBuffer);
+    int numBytes = myPort.readBytes(inBuffer);
+    assert(numBytes == 15);
+    if (inBuffer[14] > 0) {
+      numBytes = inBuffer[14];
+      byte[] data = new byte[numBytes];
+      while (myPort.available() < numBytes) {
+        delay(1000);
+      }
+      int readBytes = myPort.readBytes(data);
+      assert(numBytes == readBytes);
+      if (bandAssign == null || bandAssign.length < numBytes + 1 ) {
+        myPort.clear();
+        break;
+      }
+      String errors = "";
+      for (int i = 0; i < numBytes; ++i) {
+        if (data[i] != bandAssign[i+1]) {
+          errors += ("" + i + ": " + data[i] + ", " + bandAssign[i+1] + ". ");
+        }
+      }
+      if (errors.length() > 0) {
+        println("ERRORS: " + errors);
+        myPort.clear();
+      }
+    }
    
   }
   pushStyle();
@@ -330,11 +354,11 @@ void resetBalloons() {
   balloons[balloons.length - 1] = fakeSmallBalloon3;
 
 
-  sortBalloonsArrayBySize(); 
+  sortBalloonsArrayBySize();  
 }
 
 void setup() {
- import processing.serial.*;
+  import processing.serial.*;
   size(XMID*2+150+300, 800);
   frameRate(18);
   //background(0);
@@ -358,8 +382,8 @@ void setup() {
  
   // now print out the text fields
   loadConfigurations();
-  titleTextField = new GTextField(this, "Title Here", 10, 10, 100, 15);
-  lscSaveButton = new LscSaveButton(10, BALLOON_MAX_Y);
+  titleTextField = new GTextField(this, "Title Here", 800, 10, 100, 20);
+  lscSaveButton = new LscSaveButton(910, 10);
 }
 
 // this is an inefficient sorting algorithm for making sure the balloons are sorted by LED id. this way, we don't
@@ -428,7 +452,7 @@ void drawConfigurations() {
   configViews = new LoadSaveConfigurationView[configurations.size()];
   int deltaY = 0;
   for (int i = 0; i < configurations.size(); ++i) {
-    configViews[i] = new LoadSaveConfigurationView(800, 10 + deltaY, (LoadSaveConfiguration)configurations.get(i));
+    configViews[i] = new LoadSaveConfigurationView(800, 40 + deltaY, (LoadSaveConfiguration)configurations.get(i));
     configViews[i].draw();
     configViews[i].checkPressed();
     deltaY += 30;
@@ -685,10 +709,13 @@ void checkSliders() {
   
 }
 
+
+int numUploads = 0;
+byte[] bandAssign;
 void writeLayout() { //write balloon freqIDs to serial port
   
-  byte[] bandAssign = new byte[balloons.length + 1];
-  
+  assert (balloons.length == 66);
+  bandAssign = new byte[balloons.length + 1];// + 4]; // + 4 for the checksum
   bandAssign[0] = byte('B'); //first byte is B to indicate balloon assignment data is coming in
   //bandAssign[1] = byte(balloons.length); //second byte is the number of balloons.
   for (int i = 0; i < balloons.length; i++) {
@@ -697,19 +724,46 @@ void writeLayout() { //write balloon freqIDs to serial port
     
   }
   
-  myPort.write(bandAssign);
-  
-  // useful for getting back what was sent out, to see if everything was written correctly. 
   /*
-  println("Wrote band data!");
-  bandAssign = new byte[balloons.length];
-  if (myPort.readBytes(bandAssign) == balloons.length) {
-    println("DATA");
-    for (int i = 0; i < balloons.length; ++i) {
-      print(i + ": " + bandAssign[i] + ", ");
+  try {
+    CRC32 crc = new java.util.zip.CRC32();
+    crc.update(bandAssign, 1, balloons.length);
+    int checksum = new Long(crc.getValue()).intValue();
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();  
+    DataOutputStream dos = new DataOutputStream(bos);
+    dos.writeInt(checksum);
+    dos.flush();  
+    byte[] data = bos.toByteArray(); 
+    bandAssign[balloons.length + 1] = data[0];
+    bandAssign[balloons.length + 2] = data[1];
+    bandAssign[balloons.length + 3] = data[2];
+    bandAssign[balloons.length + 4] = data[3];
+  } catch (Exception e) {
+    assert(false);
+  }*/
+   myPort.write(bandAssign);
+  // useful for getting back what was sent out, to see if everything was written correctly. 
+  
+  println("Wrote band data! " + numUploads++);
+  /*byte[] arduinoBandAssign = new byte[balloons.length];
+  String errors = "ERRORS: ";
+  while (true) {
+    if (myPort.available() >= balloons.length) {
+      int numBytes = myPort.readBytes(arduinoBandAssign);
+      assert(balloons.length == numBytes);
+      println("DATA");
+      for (int i = 0; i < balloons.length; ++i) {
+        print(i + ": " + bandAssign[i+1] + ", " + arduinoBandAssign[i] + "; ");
+        if (arduinoBandAssign[i] != bandAssign[i+1]) {
+          errors += "" + i + ": " + bandAssign[i+1] + " vs arduino: " + arduinoBandAssign[i];
+        }
+      }
+      println(errors);
+      break;
     }
-  }
-  */
+    
+    delay(50);
+  }*/
 }
 
 void  sendConnectedStatus() { //every interval send a signal indicating that Processing is connected
@@ -748,7 +802,12 @@ void showSliderValues() {
 }
 
 void stop() {
+  //writeLayout();
   myPort.write('X');
+  /*delay(5000);
+  myPort.clear();
+  myPort.stop();
+  myPort = null;*/
 }
 
 // saving and loading configurations
@@ -797,6 +856,9 @@ public class LscLoadButton extends GenericButton{
     sliderDamp.p = lsc.damp;
     sliderScale.p = lsc.scal;
     sliderThreshold.p = lsc.thresh;
+    // force the sliders to send their data
+    sliderDamp.slide = true;
+    checkSliders();
 
     titleTextField.setText(lsc.title);    
     

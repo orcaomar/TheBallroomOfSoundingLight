@@ -34,7 +34,8 @@ long blinkTime = 30; //interval between blinks
 
 void setup() {
   
-  setBandsUnassigned();
+  // We want to preserve the 
+  // setBandsUnassigned();
   myMatrix.begin();
   //Setup pins to drive the spectrum analyzer. It needs RESET and STROBE pins.
   pinMode(5, OUTPUT);
@@ -52,6 +53,8 @@ void setup() {
   digitalWrite(4,HIGH);
   digitalWrite(4,LOW);
   digitalWrite(5,LOW);
+
+  chksum_crc32gentab();
   
   //Start serial communication
   Serial.begin(115200); 
@@ -62,7 +65,9 @@ void setup() {
 
 
 // Function to read 7 band equalizers
- 
+
+unsigned long lastBandAssignMs = 0;
+
 void loop() {
   //digitalWrite(txLEDpin, LOW);
   //calculate damping, audio scaling values from serial input
@@ -124,17 +129,32 @@ void loop() {
     digitalWrite(4,LOW);  
    
   }
-  
- 
-    
-    
-  
 
    //send 7 bands to first 7 LEDs in temporary prototype setup
    //sendSeven();
-   
-   Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
-   
+   if (processingConnected) {
+     Serial.write(spectrumBuffer, 14); //write the spectrum values to the serial port
+   }
+   unsigned long now = millis();
+   if (now - lastBandAssignMs > 10000) {
+     lastBandAssignMs = now;
+     byte data[BALLOON_COUNT + 1];
+     data[0] = BALLOON_COUNT;
+     for (int i = 0; i < BALLOON_COUNT; i++) { //read new values into bandAssign array
+       data[i+1] = bandAssign[i];
+       if (!processingConnected) {
+         Serial.print(data[i+1], DEC);
+         Serial.print(',');
+       }
+     }
+     if (!processingConnected) {
+       Serial.println(' ');
+     } else {
+       Serial.write(data, BALLOON_COUNT + 1);
+     }
+   } else {
+     Serial.write(0, 1);
+   }
    if (processingConnected) { //if processing is connected then blink the tx LED
      blinkTransmitLED();
    } else {
@@ -158,6 +178,26 @@ void checkSerial() { //check for Serial activity and update
     blinkReceiveLED();
     byte firstByte = Serial.read();
     
+    if (firstByte == 'X') { // Processing exited
+      processingConnected = false;
+      //Serial.flush();
+      //delay(1000);
+    } else if (firstByte == 'T') { // Processing is running
+      processingConnected = true;
+      //Serial.begin(112500);
+      //delay(1000);
+    }
+    
+    if (!processingConnected) { // bogus data can end up on the serial line, and we should ignore all of it if processing isn't running
+      // we should not be getting data now .. send it back
+      // 
+      /*byte data[] = {'\n', 'B', 'A', 'D','N','C', firstByte};
+      Serial.write(data, 7);
+      Serial.flush();*/
+      continue;
+      
+    }
+    
     if (firstByte == 'S') { //read in slider values  
       audioDamp = Serial.read();
       audioScale = Serial.read();
@@ -166,17 +206,16 @@ void checkSerial() { //check for Serial activity and update
       getNewLayout();
     } else if (firstByte == 'C') { //enter LED check mode
       enterLEDCheckMode();
-    } else if (firstByte == 'X') { //Processing has exited and there is nothing reading the serial being sent
-      processingConnected = false;
-      
-    } else if (firstByte == 'T') { //Processing is connected
-      
-      processingConnected = true;
-      
     } else if (firstByte == 'R') { // R for replay the data you have back to us
       int balloon = Serial.read();
       byte data[] = {bandAssign[balloon]};
-      Serial.write(data, 1);
+      //Serial.write(data, 1);
+    } else {
+      // something very bad happened
+      // we set all the LEDs off and send the byte back to the processing
+      /*byte data[] = {'\n', 'B', 'A', 'D', 'C', firstByte};
+      Serial.write(data, 6);
+      Serial.flush();*/
     }
       
     
@@ -197,19 +236,34 @@ void checkSerial() { //check for Serial activity and update
 }
 
 void getNewLayout() {
- while (Serial.available() < BALLOON_COUNT) {
+ while (Serial.available() < BALLOON_COUNT) { // + 4) {
    delay(10);
  } 
+ 
+ if (!processingConnected) {
+   Serial.println(999, DEC);
+ }
  
  // put back the "data" stuff if you want to send data about what was written. useful for debugging, but can only work
  // if other data, namely AUDIO data writing, is disabled.
  // byte data[BALLOON_COUNT];
  for (int i = 0; i < BALLOON_COUNT; i++) { //read new values into bandAssign array
    bandAssign[i] = Serial.read();
-   // data[i] = bandAssign[i]; 
+   //data[i] = bandAssign[i]; 
  }
 
- // Serial.write(data, BALLOON_COUNT);
+/*
+ unsigned long checksum = chksum_crc32(bandAssign, BALLOON_COUNT);
+ byte b_checksum[4] = {(&checksum)[0]};
+ for (int i = 0; i < 4; ++i) {
+   if (((byte*)(&checksum))[i] != Serial.read() ) {
+     setBandsUnassigned();
+     delay(60*1000);
+   }
+ }
+ */
+ 
+ //Serial.write(data, BALLOON_COUNT);
  
  //digitalWrite(rxLEDpin, LOW);
 }
@@ -371,6 +425,103 @@ void waitforSerial() {
   
 }
     
+/* crc_tab[] -- this crcTable is being build by chksum_crc32GenTab().
+ *		so make sure, you call it before using the other
+ *		functions
+ */
+
+unsigned long crc_tab[256];
+
+
+
+/* chksum_crc() -- to a given block, this one calculates the
+ *				crc32-checksum until the length is
+ *				reached. the crc32-checksum will be
+ *				the result.
+ */
+
+unsigned long chksum_crc32 (int *block, unsigned int length)
+
+{
+
+   unsigned long crc;
+
+   unsigned long i;
+
+
+
+   crc = 0xFFFFFFFF;
+
+   for (i = 0; i < length; i++)
+
+   {
+
+      crc = ((crc >> 8) & 0x00FFFFFF) ^ crc_tab[(crc ^ *block++) & 0xFF];
+
+   }
+
+   return (crc ^ 0xFFFFFFFF);
+
+}
+
+
+
+/* chksum_crc32gentab() --      to a global crc_tab[256], this one will
+
+ *				calculate the crcTable for crc32-checksums.
+
+ *				it is generated to the polynom [..]
+
+ */
+
+
+
+void chksum_crc32gentab ()
+
+{
+
+   unsigned long crc, poly;
+
+   int i, j;
+
+
+
+   poly = 0xEDB88320L;
+
+   for (i = 0; i < 256; i++)
+
+   {
+
+      crc = i;
+
+      for (j = 8; j > 0; j--)
+
+      {
+
+	 if (crc & 1)
+
+	 {
+
+	    crc = (crc >> 1) ^ poly;
+
+	 }
+
+	 else
+
+	 {
+
+	    crc >>= 1;
+
+	 }
+
+      }
+
+      crc_tab[i] = crc;
+
+   }
+
+}
+
   
   
 
