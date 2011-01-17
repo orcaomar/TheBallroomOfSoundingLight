@@ -270,45 +270,48 @@ byte getSpectrumFromBandAssignment(int bandAssignmentIndex) {
     return spectrumBuffer[i];
   }
 }
- 
+
+// the data in this array is based on the table in the root directory in "Balloon LED assignment updated.pdf"
+// This is a direct translation, so please refer to that table to make sense of what's going here.
 void loadLevelArrays() { //load level values into Matrix arrays 
 
  for (int i = 0; i < 6; i++) { //get first 12 values for six 2 LED balloons
-     
-    powerBoard1[2*i] = powerBoard1[2*i + 1] = getSpectrumFromBandAssignment(i);
-    
     //3 LEDs per 5' balloons:
-    //powerBoard[3*i] = powerBoard1[3*i + 1] = powerBoard1[3*i + 2] = getSpectrumFromBandAssignment(i);
+    powerBoard1[3*i] = powerBoard1[3*i + 1] = powerBoard1[3*i + 2] = getSpectrumFromBandAssignment(i);
     
   }
   
-  for (int i = 6; i < 26; i++) {
-
-    powerBoard1[i+6] = getSpectrumFromBandAssignment(i);
-    
-  } //first board array is now full with data for first 26 baloons. 6 5ft (0-5), 12 4ft (6-17), 8 3ft (18-25);
+  powerBoard1[18] = getSpectrumFromBandAssignment(6);
+  powerBoard1[19] = getSpectrumFromBandAssignment(7);
+   
+  for (int i = 8; i < 14; i++) {
+    powerBoard2[i+11] = getSpectrumFromBandAssignment(i);
+  } 
   
-  /*
-  for (int i = 26; i < 58; i++ {
+  powerBoard1[20] = getSpectrumFromBandAssignment(14);
   
-    powerBoard2[i-26] =spectrumBuffer[bandAssign[i]];
-    
-  } //second board array now full 
-  
-  */
-  
-  for (int i = 26; i < 42; i++) {
-    
-    powerBoard2[i-26] = getSpectrumFromBandAssignment(i); 
+  // powerBoard1 sections 21,22,23 are intentionally empty
+  for (int i = 15; i < 20; i++) {
+    powerBoard1[i+9] = getSpectrumFromBandAssignment(i);
   }
-  // TODO: are there going to be 21 or 24 3' balloons?
-  //powerBoard2 has 16 LEDs, for remaing 16 3 ft baloons (24 total)
   
-  for (int i = 42; i < 66; i++) {
-    
-    ledBoard[i-42] = getSpectrumFromBandAssignment(i);
+  for (int i = 20; i < 39; i++) {
+    powerBoard2[i - 20] = getSpectrumFromBandAssignment(i); 
   }
- //LEDBoard has 24 LEds
+  
+  
+  for (int i = 42; i < 48; i++) {
+    ledBoard[i - 42] = getSpectrumFromBandAssignment(i);
+  }
+  for (int i = 48; i < 54; i++) {
+    ledBoard[i - 32] = getSpectrumFromBandAssignment(i);
+  }
+  for (int i = 54; i < 60; i++) {
+    ledBoard[i - 22] = getSpectrumFromBandAssignment(i);
+  }
+  for (int i = 60; i < 66; i++) {
+    ledBoard[i - 12] = getSpectrumFromBandAssignment(i);
+  }
   
 }  
 
