@@ -33,10 +33,10 @@ void setupAudio() {
     audioSelectors[i+7] = new AudioFrequencySelector(audioX + ((i+7)*35)+50 + 35, audioY + 255, str(i+1), i+7);
   }
   
-  audioDeselector = new AudioFrequencySelector(audioX + 50, audioY + 275, "CLR", MAX_BANDS + 1); //deselect
+  audioDeselector = new AudioFrequencySelector(10, 570, "CLR", MAX_BANDS + 1); //deselect
   
-  ledCheckButton = new LedCheckButton (audioX + 50, audioY + 295);
-  layoutUpdateButton = new LayoutUpdateButton(audioX + 50, audioY + 315);
+  ledCheckButton = new LedCheckButton (10, 600);
+  layoutUpdateButton = new LayoutUpdateButton(10, 630);
 
 
   sliderScale=new Slider(audioX - 80,audioY+5,255, 255, "S"); // define slider objects
@@ -149,7 +149,7 @@ class Slider { //slider height and slider name not currently implemented
     fill(150);
     rect(x-10, s-p+y, 20, 14);  //slider button
     
-    text(name, x, y+s+30);
+    text(name, x, y+s+20);
 
     
     if (slide=true && mousePressed==true && mouseX<x+15 && mouseX>x-15){
@@ -219,9 +219,9 @@ Balloon[] balloons = new Balloon[leftTopBalloons.length * 4 + xAxisBalloons.leng
 
 
 BalloonTypeSelector[] selectors = {new BalloonTypeSelector(TINY, "2'", 10, 450), 
-                                   new BalloonTypeSelector(SMALL, "3'", 10, 490), 
-                                   new BalloonTypeSelector(MEDIUM, "4'", 10, 530), 
-                                   new BalloonTypeSelector(LARGE, "5'", 10, 570)};
+                                   new BalloonTypeSelector(SMALL, "3'", 10, 480), 
+                                   new BalloonTypeSelector(MEDIUM, "4'", 10, 510), 
+                                   new BalloonTypeSelector(LARGE, "5'", 10, 540)};
 
 static byte NEXT_BALLOON_LED = 0;
 
@@ -343,8 +343,8 @@ void resetBalloons() {
 
 void setup() {
   import processing.serial.*;
-  size(XMID*2+150+300, 800);
-  frameRate(18);
+  size(XMID*2+150+200, 770);
+  frameRate(15);
   //background(0);
   //fill(255);
   
