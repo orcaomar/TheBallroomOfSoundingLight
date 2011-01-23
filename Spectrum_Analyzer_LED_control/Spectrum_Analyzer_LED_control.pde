@@ -275,14 +275,23 @@ byte getSpectrumFromBandAssignment(int bandAssignmentIndex) {
 // This is a direct translation, so please refer to that table to make sense of what's going here.
 void loadLevelArrays() { //load level values into Matrix arrays 
 
+/*
  for (int i = 0; i < 6; i++) { //get first 12 values for six 2 LED balloons
     //3 LEDs per 5' balloons:
     powerBoard1[3*i] = powerBoard1[3*i + 1] = powerBoard1[3*i + 2] = getSpectrumFromBandAssignment(i);
     
   }
+  */
+  //6 values for 6 5' balloons arranged so 6 LEDs per Darlington array
+  powerBoard1[0] = powerBoard1[1] = getSpectrumFromBandAssignment(0);
+  powerBoard1[3] = powerBoard1[4] = getSpectrumFromBandAssignment(1);
+  powerBoard1[6] = powerBoard1[7] = getSpectrumFromBandAssignment(2);
+  powerBoard1[8] = powerBoard1[9] = getSpectrumFromBandAssignment(3);
+  powerBoard1[11] = powerBoard1[12] = getSpectrumFromBandAssignment(4);
+  powerBoard1[14] = powerBoard1[15] = getSpectrumFromBandAssignment(5);
   
-  powerBoard1[18] = getSpectrumFromBandAssignment(6);
-  powerBoard1[19] = getSpectrumFromBandAssignment(7);
+  powerBoard1[16] = getSpectrumFromBandAssignment(6);
+  powerBoard1[17] = getSpectrumFromBandAssignment(7);
    
   for (int i = 8; i < 14; i++) {
     powerBoard2[i+11] = getSpectrumFromBandAssignment(i);

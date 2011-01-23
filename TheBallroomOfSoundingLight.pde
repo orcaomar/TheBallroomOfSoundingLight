@@ -1,3 +1,6 @@
+import promidi.*;
+
+MidiIO midiIO;
 
 int NUM_FREQS = 7;  //number of frequency bands - 7 left and 7 right
 int audioX = 150, audioY = 450; //initial audio region coordinates
@@ -356,9 +359,18 @@ void setup() {
   
   // now setup the audio
   setupAudio();
+   //get an instance of MidiIO
+  midiIO = MidiIO.getInstance(this);
+  println("printPorts of midiIO");
+  
+  //print a list of all available devices
+  midiIO.printDevices();
+  
+  //open the first midi channel of the first device
+  midiIO.openInput(0,0);
   //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
-  
+  println(Serial.list());
   waitforSerial(); //doesn't do anything yet
   
   // TELL ME THE # of BALLOONS
@@ -923,3 +935,19 @@ void saveConfigurations() {
   }
 }
 
+void controllerIn(Controller controller, int device, int channel){
+  
+  int num = controller.getNumber();
+  int val = controller.getValue();
+  sliderScale.slide = true;
+  
+  if (num == 12) {
+    sliderScale.p = 255 - int((val/127.0)*255);
+  } else if (num == 13) {
+    sliderDamp.p = 255 - int((val/127.0)*255);
+  } else if (num == 14) {
+  sliderThreshold.p = 255 - int((val/127.0)*255);
+  }
+  
+  
+}
