@@ -939,14 +939,17 @@ void controllerIn(Controller controller, int device, int channel){
   
   int num = controller.getNumber();
   int val = controller.getValue();
-  sliderScale.slide = true;
+  
   
   if (num == 12) {
-    sliderScale.p = 255 - int((val/127.0)*255);
+      sliderScale.slide = true;
+      sliderScale.p = 255 - int((val/127.0)*255);
   } else if (num == 13) {
-    sliderDamp.p = 255 - int((val/127.0)*255);
+      sliderDamp.slide = true;
+      sliderDamp.p = 255 - int((val/127.0)*255);
   } else if (num == 14) {
-  sliderThreshold.p = 255 - int((val/127.0)*255);
+      sliderThreshold.slide = true;
+      sliderThreshold.p = 255 - int((val/127.0)*255);
   }
   
   

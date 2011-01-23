@@ -293,9 +293,19 @@ void loadLevelArrays() { //load level values into Matrix arrays
   powerBoard1[16] = getSpectrumFromBandAssignment(6);
   powerBoard1[17] = getSpectrumFromBandAssignment(7);
    
+  /* 
   for (int i = 8; i < 14; i++) {
     powerBoard2[i+11] = getSpectrumFromBandAssignment(i);
   } 
+  */
+  
+  powerBoard2[19] = getSpectrumFromBandAssignment(8);
+  powerBoard2[20] = getSpectrumFromBandAssignment(9);
+  powerBoard2[21] = getSpectrumFromBandAssignment(10);
+  
+  powerBoard2[24] = getSpectrumFromBandAssignment(11);
+  powerBoard2[25] = getSpectrumFromBandAssignment(12);
+  powerBoard2[26] = getSpectrumFromBandAssignment(13);
   
   powerBoard1[20] = getSpectrumFromBandAssignment(14);
   
@@ -308,7 +318,7 @@ void loadLevelArrays() { //load level values into Matrix arrays
     powerBoard2[i - 20] = getSpectrumFromBandAssignment(i); 
   }
   
-  
+  //ledboard levels - 4 slots of 6 LEDs each
   for (int i = 42; i < 48; i++) {
     ledBoard[i - 42] = getSpectrumFromBandAssignment(i);
   }
