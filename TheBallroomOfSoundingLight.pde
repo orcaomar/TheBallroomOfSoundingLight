@@ -342,6 +342,18 @@ void resetBalloons() {
 
 
   sortBalloonsArrayBySize();  
+  
+  lastMinuteLayoutFixForGladstoneSpeakers();
+}
+
+void lastMinuteLayoutFixForGladstoneSpeakers() {
+  // turns out that balloons 18 and 23 can no longer be placed as in the configuration above because
+  // the gladstone has speakers in those positions. thus we move them manually here. damn hard coding of
+  // the balloons IDs (which are originally based on sorting, not hand picked).
+  balloons[18].x = balloons[18].x + (XMID - balloons[18].x) * 2 + 110;
+  balloons[18].y += 10;  
+  balloons[23].x = balloons[23].x + (XMID - balloons[23].x) * 2 + 110;
+  balloons[23].y -= 10;  
 }
 
 void setup() {
@@ -360,14 +372,14 @@ void setup() {
   // now setup the audio
   setupAudio();
    //get an instance of MidiIO
-  midiIO = MidiIO.getInstance(this);
+  // midiIO = MidiIO.getInstance(this);
   println("printPorts of midiIO");
   
   //print a list of all available devices
-  midiIO.printDevices();
+  // midiIO.printDevices();
   
   //open the first midi channel of the first device
-  midiIO.openInput(0,0);
+  // midiIO.openInput(0,0);
   //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
   println(Serial.list());
