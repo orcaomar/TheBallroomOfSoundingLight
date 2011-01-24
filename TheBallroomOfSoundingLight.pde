@@ -372,14 +372,14 @@ void setup() {
   // now setup the audio
   setupAudio();
    //get an instance of MidiIO
-  // midiIO = MidiIO.getInstance(this);
+  midiIO = MidiIO.getInstance(this);
   println("printPorts of midiIO");
   
   //print a list of all available devices
-  // midiIO.printDevices();
+  midiIO.printDevices();
   
   //open the first midi channel of the first device
-  // midiIO.openInput(0,0);
+  midiIO.openInput(0,0);
   //set up the serial port
   myPort = new Serial(this, Serial.list()[0], 115200);
   println(Serial.list());

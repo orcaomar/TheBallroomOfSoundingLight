@@ -1,0 +1,9 @@
+SOFTWARE PREREQUISITES
+
+You must have Processing installed. If you want to modify the code on the Arduino (see the Spectrum_Analyzer_LED_control directory) then you must install the Arduino DisplayDuino 744 environment. See http://mondomatrix.com/info/?page_id=364
+
+INSTALLATION
+
+Before you can run the Processing code, you need to install a number of libraries in your Processing/libraries directory (Processing creates this directory when it first run). Copy the directories labeled 'guicomponents' and 'promidi' from the 'external' directory into your Processing 'libraries' directory.
+
+Finally, if you run on OS X, you will need to install the mmj midi library. Open mmj.zip and read the readme.txt to understand the nuances of installing this software.
